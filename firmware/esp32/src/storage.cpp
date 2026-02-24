@@ -44,14 +44,15 @@ void storage_save_assignments(const std::vector<SpeakerAssignment>& assignments)
         obj["name"]     = a.name.c_str();
     }
 
-    char buf[4096];
-    size_t written = serializeJson(doc, buf, sizeof(buf));
+    // Usa String su heap per evitare stack overflow su ESP32
+    String buf;
+    size_t written = serializeJson(doc, buf);
     if (written == 0) {
         Serial.println("[STORAGE] Errore serializzazione JSON");
         return;
     }
 
-    s_prefs.putString(NVS_KEY_ASSIGN, buf);
+    s_prefs.putString(NVS_KEY_ASSIGN, buf.c_str());
     Serial.printf("[STORAGE] Salvate %d assegnazioni\n", (int)assignments.size());
 }
 

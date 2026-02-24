@@ -18,7 +18,7 @@ class Speaker {
   });
 
   factory Speaker.fromJson(Map<String, dynamic> json) => Speaker(
-        id:       json['id'] as int,
+        id:       json['id'] as int? ?? 0,
         name:     json['name']     ?? 'Cassa ${json['id']}',
         type:     json['type']     ?? '2WAY',
         position: json['position'] ?? 'P1',

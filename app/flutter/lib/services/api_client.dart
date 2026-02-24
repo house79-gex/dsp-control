@@ -13,7 +13,9 @@ class ApiClient {
       final res = await http
           .get(Uri.parse('$baseUrl/api/devices'))
           .timeout(const Duration(seconds: 5));
-      if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
+      if (res.statusCode != 200) {
+        throw Exception('HTTP ${res.statusCode} - ${res.body}');
+      }
       final List<dynamic> data = jsonDecode(res.body) as List<dynamic>;
       return data
           .map((e) => Speaker.fromJson(e as Map<String, dynamic>))
@@ -74,7 +76,9 @@ class ApiClient {
       final res = await http
           .post(Uri.parse('$baseUrl/api/discovery'))
           .timeout(const Duration(seconds: 30));
-      if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
+      if (res.statusCode != 200) {
+        throw Exception('HTTP ${res.statusCode} - ${res.body}');
+      }
       final Map<String, dynamic> data =
           jsonDecode(res.body) as Map<String, dynamic>;
       final List<dynamic> ids = data['devices'] as List<dynamic>? ?? [];

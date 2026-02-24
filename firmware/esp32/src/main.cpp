@@ -15,11 +15,11 @@ std::vector<SpeakerAssignment> g_assignments;
 
 // ======= LVGL =======
 // TODO: collegare driver reale display SPI e touch I2C
-// Qui si usano i buffer DMA per LVGL
 
+// Buffer LVGL allocati in PSRAM (evita di esaurire DRAM su ESP32-S3)
 static lv_disp_draw_buf_t s_drawBuf;
-static lv_color_t s_buf1[800 * 20];
-static lv_color_t s_buf2[800 * 20];
+static lv_color_t* s_buf1 = nullptr;
+static lv_color_t* s_buf2 = nullptr;
 
 // Stub flush callback – da sostituire con driver SPI reale
 static void disp_flush_cb(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* color_p) {
@@ -36,7 +36,17 @@ static void touch_read_cb(lv_indev_drv_t* drv, lv_indev_data_t* data) {
 static void lvgl_init() {
     lv_init();
 
-    lv_disp_draw_buf_init(&s_drawBuf, s_buf1, s_buf2, 800 * 20);
+    // Alloca buffer in PSRAM se disponibile, altrimenti in DRAM
+    const size_t bufSize = 800 * 20;
+    s_buf1 = (lv_color_t*)heap_caps_malloc(bufSize * sizeof(lv_color_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    s_buf2 = (lv_color_t*)heap_caps_malloc(bufSize * sizeof(lv_color_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!s_buf1 || !s_buf2) {
+        // Fallback su DRAM se PSRAM non disponibile
+        if (!s_buf1) s_buf1 = (lv_color_t*)malloc(bufSize * sizeof(lv_color_t));
+        if (!s_buf2) s_buf2 = (lv_color_t*)malloc(bufSize * sizeof(lv_color_t));
+    }
+
+    lv_disp_draw_buf_init(&s_drawBuf, s_buf1, s_buf2, bufSize);
 
     static lv_disp_drv_t dispDrv;
     lv_disp_drv_init(&dispDrv);

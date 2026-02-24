@@ -242,15 +242,22 @@ void web_server_init() {
     s_server.on("/api/discovery", HTTP_POST, [](AsyncWebServerRequest* req) {
         // Avvia scansione RS-485 (sincrona – breve timeout)
         auto found = rs485_scan_devices();
-        g_assignments.clear();
+
+        // Merge: aggiungi solo dispositivi nuovi, preserva configurazioni esistenti
         for (const auto& dev : found) {
-            SpeakerAssignment a;
-            a.deviceId = dev.id;
-            a.type     = dev.type;
-            a.position = "P" + std::to_string(dev.id);
-            a.role     = SpeakerRole::MONO;
-            a.name     = "Cassa " + std::to_string(dev.id);
-            g_assignments.push_back(a);
+            bool exists = false;
+            for (const auto& a : g_assignments) {
+                if (a.deviceId == dev.id) { exists = true; break; }
+            }
+            if (!exists) {
+                SpeakerAssignment a;
+                a.deviceId = dev.id;
+                a.type     = dev.type;
+                a.position = "P" + std::to_string(dev.id);
+                a.role     = SpeakerRole::MONO;
+                a.name     = "Cassa " + std::to_string(dev.id);
+                g_assignments.push_back(a);
+            }
         }
 
         StaticJsonDocument<256> doc;

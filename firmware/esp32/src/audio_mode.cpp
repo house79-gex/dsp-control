@@ -97,7 +97,7 @@ void audio_generate_test_tone(float frequencyHz, float amplitude) {
 
     // Scrivi i campioni sul DAC via I2S
     size_t bytesWritten = 0;
-    esp_err_t err = i2s_write(I2S_PORT, s_toneBuf, sizeof(s_toneBuf), &bytesWritten, portMAX_DELAY);
+    esp_err_t err = i2s_write(I2S_PORT, s_toneBuf, sizeof(s_toneBuf), &bytesWritten, pdMS_TO_TICKS(100));
     if (err != ESP_OK) {
         Serial.printf("[AUDIO] Errore i2s_write: %d\n", err);
     }
