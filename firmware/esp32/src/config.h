@@ -26,6 +26,10 @@
 #define RS485_DE    21  // Driver Enable (HIGH = trasmissione)
 #define RS485_RE    20  // Receiver Enable (LOW = ricezione)
 
+// DMX512 (UART1)
+#define DMX_TX       1  // GPIO1 – DMX TX output
+#define DMX_DE       2  // GPIO2 – DMX Driver Enable (sempre HIGH per output)
+
 // Relay DPDT (optoisolatore)
 #define RELAY_PIN   45  // HIGH = TestTone, LOW = MixerPassThrough
 

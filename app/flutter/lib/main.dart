@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_client.dart';
 import 'screens/home_screen.dart';
+import 'screens/dmx_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() {
   runApp(const DspControlApp());
@@ -28,7 +30,7 @@ class DspControlApp extends StatelessWidget {
   }
 }
 
-// Schermata iniziale per configurare l'IP dell'ESP32
+// ——— Schermata configurazione IP ———
 class _IpSetupScreen extends StatefulWidget {
   const _IpSetupScreen();
 
@@ -67,7 +69,7 @@ class _IpSetupScreenState extends State<_IpSetupScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => HomeScreen(api: ApiClient(baseUrl: ip)),
+        builder: (_) => MainNavigation(api: ApiClient(baseUrl: ip)),
       ),
     );
   }
@@ -82,57 +84,134 @@ class _IpSetupScreenState extends State<_IpSetupScreen> {
 
     return Scaffold(
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.speaker_group, size: 80, color: Color(0xFFe94560)),
-              const SizedBox(height: 24),
-              const Text(
-                'DSP Control',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Inserisci l\'indirizzo IP dell\'ESP32\n(default: http://192.168.4.1)',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _ipCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Indirizzo ESP32',
-                  labelStyle: TextStyle(color: Colors.white54),
-                  prefixIcon: Icon(Icons.wifi, color: Color(0xFFe94560)),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.speaker_group, size: 80, color: Color(0xFFe94560)),
+                const SizedBox(height: 24),
+                const Text('DSP Control',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                const SizedBox(height: 8),
+                const Text(
+                  'Sistema Audio PA Professionale\nInserisci l\'IP dell\'ESP32 (default: http://192.168.4.1)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _ipCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Indirizzo ESP32',
+                    labelStyle: TextStyle(color: Colors.white54),
+                    prefixIcon: Icon(Icons.wifi, color: Color(0xFFe94560)),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFe94560))),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFe94560)),
+                  keyboardType: TextInputType.url,
+                  onSubmitted: (_) => _connect(),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFe94560),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    icon: const Icon(Icons.login),
+                    label: const Text('CONNETTI', style: TextStyle(fontSize: 16)),
+                    onPressed: _connect,
                   ),
                 ),
-                keyboardType: TextInputType.url,
-                onSubmitted: (_) => _connect(),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFe94560),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  icon: const Icon(Icons.login),
-                  label: const Text('CONNETTI', style: TextStyle(fontSize: 16)),
-                  onPressed: _connect,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ——— Navigazione principale responsive (smartphone + tablet) ———
+class MainNavigation extends StatefulWidget {
+  final ApiClient api;
+  const MainNavigation({super.key, required this.api});
+
+  @override
+  State<MainNavigation> createState() => _MainNavigationState();
+}
+
+class _MainNavigationState extends State<MainNavigation> {
+  int _selectedIndex = 0;
+
+  List<Widget> get _screens => [
+        HomeScreen(api: widget.api),
+        DmxScreen(api: widget.api),
+        SettingsScreen(
+          api: widget.api,
+          onUrlChanged: (newUrl) {
+            widget.api.baseUrl = newUrl;
+            setState(() {});
+          },
+        ),
+      ];
+
+  static const _destinations = [
+    NavigationDestination(icon: Icon(Icons.speaker_group), label: 'Audio'),
+    NavigationDestination(icon: Icon(Icons.lightbulb), label: 'Luci'),
+    NavigationDestination(icon: Icon(Icons.settings), label: 'Impostazioni'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
+    if (isTablet) {
+      // ——— Layout tablet: NavigationRail + pannello dettaglio ———
+      return Scaffold(
+        backgroundColor: const Color(0xFF1a1a2e),
+        body: Row(
+          children: [
+            NavigationRail(
+              backgroundColor: const Color(0xFF16213e),
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+              labelType: NavigationRailLabelType.all,
+              selectedIconTheme: const IconThemeData(color: Color(0xFFe94560)),
+              selectedLabelTextStyle: const TextStyle(color: Color(0xFFe94560)),
+              unselectedIconTheme: const IconThemeData(color: Colors.white54),
+              unselectedLabelTextStyle: const TextStyle(color: Colors.white54),
+              destinations: const [
+                NavigationRailDestination(icon: Icon(Icons.speaker_group), label: Text('Audio')),
+                NavigationRailDestination(icon: Icon(Icons.lightbulb), label: Text('Luci')),
+                NavigationRailDestination(icon: Icon(Icons.settings), label: Text('Impostazioni')),
+              ],
+            ),
+            const VerticalDivider(width: 1, color: Colors.white12),
+            Expanded(child: _screens[_selectedIndex]),
+          ],
+        ),
+      );
+    }
+
+    // ——— Layout smartphone: BottomNavigationBar ———
+    return Scaffold(
+      backgroundColor: const Color(0xFF1a1a2e),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: const Color(0xFF16213e),
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        indicatorColor: const Color(0xFFe94560).withOpacity(0.2),
+        destinations: _destinations,
       ),
     );
   }

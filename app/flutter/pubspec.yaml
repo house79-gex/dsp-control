@@ -1,6 +1,6 @@
 name: dsp_control
-description: App Flutter per il controllo del sistema DSP audio professionale
-version: 1.0.0+1
+description: App Flutter per il controllo del sistema DSP audio + luci professionale
+version: 2.0.0+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
