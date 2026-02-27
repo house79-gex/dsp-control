@@ -3,6 +3,7 @@
 #include "dsp_control.h"
 #include "dmx512.h"
 #include "audio_reactive.h"
+#include "autotune.h"
 #include <vector>
 
 void storage_init();
@@ -39,3 +40,8 @@ struct SystemConfig {
 };
 void storage_save_system_config(const SystemConfig& config);
 SystemConfig storage_load_system_config();
+
+// Calibrazione microfono di misura
+void storage_save_mic_calibration(const MicCalibration& cal);
+bool storage_load_mic_calibration(MicCalibration& cal);
+void storage_clear_mic_calibration();

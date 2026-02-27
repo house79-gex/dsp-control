@@ -2,6 +2,7 @@
 #include "dsp_control.h"
 #include "audio_mode.h"
 #include "rs485.h"
+#include "storage.h"
 #include <Arduino.h>
 #include <math.h>
 #include <string.h>
@@ -12,6 +13,7 @@ static AutotuneStatus s_status = {};
 static bool s_initialized = false;
 static RemoteFftData s_remoteFft = {};
 static bool s_remoteMode = false;
+static MicCalibration s_micCal = {};
 
 // Frequenze di analisi (octave spacing da 20Hz a 20kHz, 64 punti)
 static const float ANALYSIS_FREQS[64] = {
@@ -116,6 +118,8 @@ void autotune_init() {
     memset(&s_status, 0, sizeof(AutotuneStatus));
     s_status.state = AutotuneState::Idle;
     s_initialized  = true;
+    // Carica calibrazione salvata su NVS (se presente)
+    storage_load_mic_calibration(s_micCal);
     Serial.println("[AUTOTUNE] Modulo autotune inizializzato");
 }
 
@@ -342,6 +346,36 @@ void autotune_upload_fft(const float* bands, uint8_t numBands) {
 
     uint8_t n = (numBands > 64) ? 64 : numBands;
     memcpy(s_remoteFft.bands, bands, n * sizeof(float));
+
+    // Applica compensazione curva di calibrazione se disponibile
+    if (s_micCal.valid && s_micCal.numPoints >= 2) {
+        for (uint8_t i = 0; i < n; i++) {
+            float freq = ANALYSIS_FREQS[i];
+            float correction = 0.0f;
+
+            // Interpolazione lineare nella curva di calibrazione
+            for (uint8_t k = 0; k < s_micCal.numPoints - 1; k++) {
+                if (freq >= s_micCal.freqHz[k] && freq <= s_micCal.freqHz[k + 1]) {
+                    float ratio = (freq - s_micCal.freqHz[k]) /
+                                  (s_micCal.freqHz[k + 1] - s_micCal.freqHz[k]);
+                    correction = s_micCal.correctionDb[k] +
+                                 ratio * (s_micCal.correctionDb[k + 1] - s_micCal.correctionDb[k]);
+                    break;
+                }
+            }
+            // Clamp ai valori estremi se fuori range
+            if (freq < s_micCal.freqHz[0])
+                correction = s_micCal.correctionDb[0];
+            else if (freq > s_micCal.freqHz[s_micCal.numPoints - 1])
+                correction = s_micCal.correctionDb[s_micCal.numPoints - 1];
+
+            // Sottrai correzione: corrected_db = measured_db - interpolated_correction
+            // Convenzione Dayton/UMIK: valore positivo = microfono più sensibile → sottraiamo
+            s_remoteFft.bands[i] -= correction;
+        }
+        Serial.printf("[AUTOTUNE] Calibrazione microfono applicata (%s)\n", s_micCal.micName);
+    }
+
     s_remoteFft.timestamp = millis();
     s_remoteFft.valid = true;
     Serial.printf("[AUTOTUNE] FFT remoto ricevuto: %d bande\n", n);
@@ -353,3 +387,47 @@ void autotune_upload_fft(const float* bands, uint8_t numBands) {
 bool autotune_is_remote_mode() { return s_remoteMode; }
 
 const RemoteFftData* autotune_get_remote_fft() { return &s_remoteFft; }
+
+// ======= AutoTune con microfono USB di misura =======
+
+bool autotune_start_usb_mic(uint8_t targetId) {
+    if (!s_initialized) autotune_init();
+    if (s_status.state != AutotuneState::Idle) {
+        Serial.println("[AUTOTUNE] Procedura già in corso");
+        return false;
+    }
+
+    s_remoteMode = true;
+    memset(&s_remoteFft, 0, sizeof(RemoteFftData));
+
+    s_status.mode             = AutotuneMode::Single;
+    s_status.targetDeviceId   = targetId;
+    s_status.currentDeviceIdx = 0;
+    s_status.numResults       = 0;
+    s_status.progress         = 0.0f;
+    s_status.totalDevices     = 1;
+    s_status.state            = AutotuneState::Generating;
+    set_status_message("Modalità microfono USB: generazione sweep per cattura calibrata...");
+    // Genera sweep via DAC per il microfono USB
+    setAudioMode(AudioMode::TestTone);
+    return true;
+}
+
+// ======= API calibrazione microfono di misura =======
+
+void autotune_load_calibration(const MicCalibration* cal) {
+    if (!cal) return;
+    memcpy(&s_micCal, cal, sizeof(MicCalibration));
+    // Salva su NVS per persistenza tra riavvii
+    storage_save_mic_calibration(s_micCal);
+    Serial.printf("[AUTOTUNE] Calibrazione caricata: %s (%d punti)\n",
+                  s_micCal.micName, s_micCal.numPoints);
+}
+
+const MicCalibration* autotune_get_calibration() {
+    return &s_micCal;
+}
+
+bool autotune_has_calibration() {
+    return s_micCal.valid;
+}

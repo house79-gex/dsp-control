@@ -5,6 +5,7 @@ import '../models/dmx_fixture.dart';
 import '../models/dmx_scene.dart';
 import '../models/dsp_preset.dart';
 import '../models/audio_reactive_config.dart';
+import '../models/mic_calibration.dart';
 
 class ApiClient {
   String baseUrl;
@@ -144,6 +145,28 @@ class ApiClient {
 
   Future<Map<String, dynamic>> getAutotuneSweepStatus() =>
       _get('/api/autotune/sweep-status');
+
+  // ——— AutoTune con microfono USB di misura ———
+  Future<void> startAutotuneUsbMic({int targetId = 0}) =>
+      _post('/api/autotune/start-usb-mic', {'target_id': targetId});
+
+  // ——— Calibrazione microfono di misura ———
+  Future<void> uploadMicCalibration(MicCalibration cal) =>
+      _post('/api/autotune/calibration', cal.toJson());
+
+  Future<MicCalibration?> getMicCalibration() async {
+    final data = await _get('/api/autotune/calibration');
+    if (data['valid'] == false) return null;
+    return MicCalibration.fromJson(data);
+  }
+
+  Future<void> deleteMicCalibration() =>
+      _delete('/api/autotune/calibration');
+
+  // ——— Upload dati FFT dallo smartphone (microfono USB o integrato) ———
+  Future<void> uploadFftData(List<double> bands) =>
+      _post('/api/autotune/upload-fft',
+          {'bands': bands, 'num_bands': bands.length});
 
   // ——— Audio levels / spectrum ———
   Future<Map<String, dynamic>> getAudioLevels() => _get('/api/audio/levels');

@@ -952,6 +952,74 @@ void web_server_init() {
         req->send(200, "application/json", out);
     });
 
+    // ——— AutoTune con microfono USB di misura (Dayton iMM-6C) ———
+    s_server.on("/api/autotune/start-usb-mic", HTTP_POST, [](AsyncWebServerRequest* req) {},
+        nullptr,
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+            StaticJsonDocument<256> doc;
+            deserializeJson(doc, data, len);
+            uint8_t targetId = doc["target_id"] | 0;
+            bool ok = autotune_start_usb_mic(targetId);
+            StaticJsonDocument<128> resp;
+            resp["ok"]      = ok;
+            resp["message"] = ok ? "AutoTune microfono USB avviato" : "Procedura già in corso";
+            String out; serializeJson(resp, out);
+            req->send(200, "application/json", out);
+        });
+
+    // ——— Calibrazione microfono di misura ———
+    s_server.on("/api/autotune/calibration", HTTP_POST, [](AsyncWebServerRequest* req) {},
+        nullptr,
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+            DynamicJsonDocument doc(4096);
+            auto err = deserializeJson(doc, data, len);
+            if (err) { req->send(400, "application/json", "{\"error\":\"JSON invalido\"}"); return; }
+
+            MicCalibration cal = {};
+            const char* micName = doc["mic_name"] | "Sconosciuto";
+            strncpy(cal.micName, micName, sizeof(cal.micName) - 1);
+            JsonArray points = doc["points"].as<JsonArray>();
+            for (JsonObject p : points) {
+                if (cal.numPoints >= 128) break;
+                cal.freqHz[cal.numPoints]       = p["freq"] | 0.0f;
+                cal.correctionDb[cal.numPoints]  = p["correction"] | 0.0f;
+                cal.numPoints++;
+            }
+            cal.valid = (cal.numPoints >= 2);
+            autotune_load_calibration(&cal);
+            StaticJsonDocument<128> resp;
+            resp["ok"]        = cal.valid;
+            resp["numPoints"] = cal.numPoints;
+            String out; serializeJson(resp, out);
+            req->send(200, "application/json", out);
+        });
+
+    s_server.on("/api/autotune/calibration", HTTP_GET, [](AsyncWebServerRequest* req) {
+        const MicCalibration* cal = autotune_get_calibration();
+        if (!cal->valid) {
+            req->send(200, "application/json", "{\"valid\":false}");
+            return;
+        }
+        DynamicJsonDocument doc(4096);
+        doc["valid"]    = true;
+        doc["mic_name"] = cal->micName;
+        JsonArray points = doc.createNestedArray("points");
+        for (uint8_t i = 0; i < cal->numPoints; i++) {
+            JsonObject p = points.createNestedObject();
+            p["freq"]       = cal->freqHz[i];
+            p["correction"] = cal->correctionDb[i];
+        }
+        String out; serializeJson(doc, out);
+        req->send(200, "application/json", out);
+    });
+
+    s_server.on("/api/autotune/calibration", HTTP_DELETE, [](AsyncWebServerRequest* req) {
+        MicCalibration empty = {};
+        autotune_load_calibration(&empty);
+        storage_clear_mic_calibration();
+        req->send(200, "application/json", "{\"ok\":true}");
+    });
+
     // ——— Venue map ———
     static String s_venueMapJson = "{}";
     s_server.on("/api/venue/map", HTTP_GET, [](AsyncWebServerRequest* req) {
