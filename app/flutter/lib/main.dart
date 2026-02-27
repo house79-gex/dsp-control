@@ -4,6 +4,8 @@ import 'services/api_client.dart';
 import 'screens/home_screen.dart';
 import 'screens/dmx_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/venue_map_screen.dart';
+import 'screens/autotune_screen.dart';
 
 void main() {
   runApp(const DspControlApp());
@@ -152,6 +154,8 @@ class _MainNavigationState extends State<MainNavigation> {
   List<Widget> get _screens => [
         HomeScreen(api: widget.api),
         DmxScreen(api: widget.api),
+        VenueMapScreen(api: widget.api),
+        AutotuneScreen(api: widget.api),
         SettingsScreen(
           api: widget.api,
           onUrlChanged: (newUrl) {
@@ -164,6 +168,8 @@ class _MainNavigationState extends State<MainNavigation> {
   static const _destinations = [
     NavigationDestination(icon: Icon(Icons.speaker_group), label: 'Audio'),
     NavigationDestination(icon: Icon(Icons.lightbulb), label: 'Luci'),
+    NavigationDestination(icon: Icon(Icons.map), label: 'Mappa'),
+    NavigationDestination(icon: Icon(Icons.tune), label: 'AutoTune'),
     NavigationDestination(icon: Icon(Icons.settings), label: 'Impostazioni'),
   ];
 
@@ -189,6 +195,8 @@ class _MainNavigationState extends State<MainNavigation> {
               destinations: const [
                 NavigationRailDestination(icon: Icon(Icons.speaker_group), label: Text('Audio')),
                 NavigationRailDestination(icon: Icon(Icons.lightbulb), label: Text('Luci')),
+                NavigationRailDestination(icon: Icon(Icons.map), label: Text('Mappa')),
+                NavigationRailDestination(icon: Icon(Icons.tune), label: Text('AutoTune')),
                 NavigationRailDestination(icon: Icon(Icons.settings), label: Text('Impostazioni')),
               ],
             ),

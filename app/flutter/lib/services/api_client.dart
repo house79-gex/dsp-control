@@ -134,6 +134,42 @@ class ApiClient {
 
   Future<void> cancelAutotune() => _post('/api/dsp/autotune/cancel');
 
+  // ——— AutoTune remoto ———
+  Future<void> startAutotuneRemote({int? targetId}) =>
+      _post('/api/autotune/start-remote',
+          {if (targetId != null) 'targetId': targetId});
+
+  Future<void> uploadAutotuneFFT(List<double> bands) =>
+      _post('/api/autotune/upload-fft', {'bands': bands});
+
+  Future<Map<String, dynamic>> getAutotuneSweepStatus() =>
+      _get('/api/autotune/sweep-status');
+
+  // ——— Audio levels / spectrum ———
+  Future<Map<String, dynamic>> getAudioLevels() => _get('/api/audio/levels');
+
+  Future<Map<String, dynamic>> getAudioSpectrum() =>
+      _get('/api/audio/spectrum');
+
+  // ——— Venue map ———
+  Future<Map<String, dynamic>> getVenueMap() => _get('/api/venue/map');
+
+  Future<void> saveVenueMap(Map<String, dynamic> map) =>
+      _post('/api/venue/map', map);
+
+  Future<Map<String, dynamic>> calculateVenueDelays({
+    required List<Map<String, dynamic>> speakers,
+    required double listenerX,
+    required double listenerY,
+  }) =>
+      _post('/api/venue/calculate-delays', {
+        'speakers': speakers,
+        'listenerPosition': {'x': listenerX, 'y': listenerY},
+      });
+
+  // ——— Gruppi ———
+  Future<Map<String, dynamic>> getGroups() => _get('/api/groups');
+
   // ——— DMX Fixture ———
 
   Future<List<DmxFixture>> getDmxFixtures() async {
