@@ -27,8 +27,18 @@ enum class AutotuneMode {
 
 // Sorgente microfono per autotune
 enum class AutoTuneSource {
-    LOCAL_MIC,        // Microfono locale (ES8388 ADC)
-    REMOTE_SMARTPHONE // Microfono smartphone via WiFi
+    LOCAL_MIC,           // Microfono locale (ES8388 ADC)
+    REMOTE_SMARTPHONE,   // Microfono smartphone via WiFi
+    USB_MEASUREMENT_MIC  // Microfono USB di misura calibrato (es. Dayton iMM-6C)
+};
+
+// Curva di calibrazione microfono di misura (max 128 punti)
+struct MicCalibration {
+    float freqHz[128];       // Frequenze
+    float correctionDb[128]; // Correzione in dB per ogni frequenza
+    uint8_t numPoints;       // Numero di punti nella curva
+    char micName[32];        // Nome microfono (es. "iMM-6C SN12345")
+    bool valid;              // Calibrazione caricata e valida
 };
 
 // Stato autotune remoto (smartphone)
@@ -84,8 +94,14 @@ const AutotuneStatus* autotune_get_status();
 // Tick periodico – avanzamento state machine (chiamare ogni ~100ms)
 void autotune_tick();
 
-// AutoTune remoto (microfono smartphone)
+// AutoTune remoto (microfono smartphone o USB di misura)
 bool autotune_start_remote(uint8_t targetId = 0);
+bool autotune_start_usb_mic(uint8_t targetId = 0);
 void autotune_upload_fft(const float* bands, uint8_t numBands);
 bool autotune_is_remote_mode();
 const RemoteFftData* autotune_get_remote_fft();
+
+// API calibrazione microfono di misura
+void autotune_load_calibration(const MicCalibration* cal);
+const MicCalibration* autotune_get_calibration();
+bool autotune_has_calibration();

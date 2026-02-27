@@ -330,3 +330,58 @@ SystemConfig storage_load_system_config() {
     Serial.println("[STORAGE] Configurazione sistema caricata");
     return config;
 }
+
+// ======= Persistenza Calibrazione Microfono di Misura =======
+
+void storage_save_mic_calibration(const MicCalibration& cal) {
+    DynamicJsonDocument doc(4096);
+    doc["valid"]     = cal.valid;
+    doc["micName"]   = cal.micName;
+    doc["numPoints"] = cal.numPoints;
+    JsonArray freqs = doc.createNestedArray("freqHz");
+    JsonArray corrs = doc.createNestedArray("correctionDb");
+    for (uint8_t i = 0; i < cal.numPoints; i++) {
+        freqs.add(cal.freqHz[i]);
+        corrs.add(cal.correctionDb[i]);
+    }
+    String buf;
+    serializeJson(doc, buf);
+    s_prefs.putString("mic_cal", buf.c_str());
+    Serial.printf("[STORAGE] Calibrazione microfono salvata: %s (%d punti)\n",
+                  cal.micName, cal.numPoints);
+}
+
+bool storage_load_mic_calibration(MicCalibration& cal) {
+    memset(&cal, 0, sizeof(MicCalibration));
+    String json = s_prefs.getString("mic_cal", "{}");
+    if (json.isEmpty() || json == "{}") {
+        Serial.println("[STORAGE] Nessuna calibrazione microfono salvata");
+        return false;
+    }
+
+    DynamicJsonDocument doc(4096);
+    if (deserializeJson(doc, json)) {
+        Serial.println("[STORAGE] Errore parsing calibrazione microfono");
+        return false;
+    }
+
+    cal.valid     = doc["valid"] | false;
+    cal.numPoints = doc["numPoints"] | 0;
+    strncpy(cal.micName, doc["micName"] | "", sizeof(cal.micName) - 1);
+
+    JsonArray freqs = doc["freqHz"].as<JsonArray>();
+    JsonArray corrs = doc["correctionDb"].as<JsonArray>();
+    uint8_t i = 0;
+    for (float v : freqs) { if (i < 128) cal.freqHz[i++] = v; }
+    i = 0;
+    for (float v : corrs) { if (i < 128) cal.correctionDb[i++] = v; }
+
+    Serial.printf("[STORAGE] Calibrazione microfono caricata: %s (%d punti)\n",
+                  cal.micName, cal.numPoints);
+    return cal.valid;
+}
+
+void storage_clear_mic_calibration() {
+    s_prefs.remove("mic_cal");
+    Serial.println("[STORAGE] Calibrazione microfono cancellata");
+}
