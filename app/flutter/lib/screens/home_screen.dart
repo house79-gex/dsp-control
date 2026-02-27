@@ -20,9 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
 
   // VU meter
+  static const double _vuMinDb = -60.0;  // Livello minimo VU meter (dBFS)
+  static const double _vuRangeDb = 60.0; // Intervallo VU meter (dB)
   double _vuLeft = 0.0;
   double _vuRight = 0.0;
-  double _vuPeakDb = -60.0;
+  double _vuPeakDb = _vuMinDb;
   Timer? _vuTimer;
 
   @override
@@ -44,12 +46,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final data = await widget.api.getAudioLevels();
       if (!mounted) return;
       setState(() {
-        // Converti dB in percentuale lineare per la barra (min=-60, max=0)
-        final leftDb = (data['left_db'] as num?)?.toDouble() ?? -60.0;
-        final rightDb = (data['right_db'] as num?)?.toDouble() ?? -60.0;
-        _vuPeakDb = (data['master_db'] as num?)?.toDouble() ?? -60.0;
-        _vuLeft = ((leftDb + 60.0) / 60.0).clamp(0.0, 1.0);
-        _vuRight = ((rightDb + 60.0) / 60.0).clamp(0.0, 1.0);
+        // Converti dB in percentuale lineare per la barra (min=_vuMinDb, max=0)
+        final leftDb = (data['left_db'] as num?)?.toDouble() ?? _vuMinDb;
+        final rightDb = (data['right_db'] as num?)?.toDouble() ?? _vuMinDb;
+        _vuPeakDb = (data['master_db'] as num?)?.toDouble() ?? _vuMinDb;
+        _vuLeft = ((leftDb - _vuMinDb) / _vuRangeDb).clamp(0.0, 1.0);
+        _vuRight = ((rightDb - _vuMinDb) / _vuRangeDb).clamp(0.0, 1.0);
       });
     } catch (_) {
       // VU meter non disponibile, ignora

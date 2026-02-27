@@ -9,8 +9,11 @@
 #define I2S_PORT        I2S_NUM_0
 #define I2S_SAMPLE_RATE 48000
 #define I2S_BUFFER_SIZE 256
-#define FFT_SIZE        512
-#define NUM_BANDS       32
+#define FFT_SIZE              512
+#define NUM_BANDS             32
+// Fattore di normalizzazione FFT: FFT_SIZE/4 perché le magnitudini tipiche dopo
+// dsps_cplx2reC_fc32 sono nell'ordine di N/4 per segnali a piena ampiezza
+#define FFT_NORM_FACTOR       (FFT_SIZE / 4.0f)
 
 static AudioMode s_currentMode = AudioMode::MixerPassThrough;
 
@@ -190,7 +193,7 @@ void audio_fft_process() {
             if (mag > maxMag) maxMag = mag;
         }
         // Normalizza (0.0-1.0)
-        result.bands[b] = fminf(1.0f, maxMag / (FFT_SIZE / 4.0f));
+        result.bands[b] = fminf(1.0f, maxMag / FFT_NORM_FACTOR);
     }
 
     portENTER_CRITICAL(&s_fftMux);

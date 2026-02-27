@@ -246,7 +246,7 @@ class ApiClient {
     return data.map((e) => AudioReactiveConfig.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<Map<String, dynamic>> getAudioSpectrum() =>
+  Future<Map<String, dynamic>> getAudioReactiveSpectrum() =>
       _get('/api/dmx/audio-reactive/spectrum');
 
   // ——— USB Import/Export ———

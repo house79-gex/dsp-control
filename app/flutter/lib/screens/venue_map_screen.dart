@@ -319,11 +319,13 @@ class _VenueMapPainter extends CustomPainter {
       ..strokeWidth = 0.5;
     final cellW = size.width / map.widthMeters;
     final cellH = size.height / map.heightMeters;
-    for (int x = 0; x <= map.widthMeters.toInt(); x++) {
+    final maxX = map.widthMeters.toInt();
+    final maxY = map.heightMeters.toInt();
+    for (int x = 0; x <= maxX; x++) {
       canvas.drawLine(
           Offset(x * cellW, 0), Offset(x * cellW, size.height), gridPaint);
     }
-    for (int y = 0; y <= map.heightMeters.toInt(); y++) {
+    for (int y = 0; y <= maxY; y++) {
       canvas.drawLine(
           Offset(0, y * cellH), Offset(size.width, y * cellH), gridPaint);
     }

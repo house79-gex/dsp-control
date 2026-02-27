@@ -255,7 +255,7 @@ std::vector<DmxGroup> storage_load_dmx_groups() {
         JsonArray fids = obj["fixtureIds"].as<JsonArray>();
         uint8_t i = 0;
         for (uint8_t fid : fids) {
-            if (i < sizeof(g.fixtureIds)) g.fixtureIds[i++] = fid;
+            if (i < sizeof(g.fixtureIds) / sizeof(g.fixtureIds[0])) g.fixtureIds[i++] = fid;
         }
         groups.push_back(g);
     }
