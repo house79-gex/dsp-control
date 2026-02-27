@@ -14,6 +14,9 @@
 #include "ui/ui_home.h"
 #include "ui/ui_discovery.h"
 #include "ui/ui_assignment.h"
+#include "ui/ui_dmx.h"
+#include "ui/ui_dsp_advanced.h"
+#include "led_ring.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -75,6 +78,12 @@ static void ui_create_tabview() {
     ui_home_create(tabHome);
     ui_discovery_create(tabDiscovery);
     ui_assignment_create(tabAssignment, 0);
+
+    lv_obj_t* tabDmx = lv_tabview_add_tab(tabview, LV_SYMBOL_EYE_OPEN " Luci");
+    lv_obj_t* tabDsp = lv_tabview_add_tab(tabview, LV_SYMBOL_SETTINGS " DSP");
+
+    ui_dmx_create(tabDmx);
+    ui_dsp_advanced_create(tabDsp);
 }
 
 // ======= Task FreeRTOS DSP heartbeat (su Core 1) =======
@@ -142,9 +151,17 @@ void setup() {
     // Inizializzazione USB storage
     usb_storage_init();
 
+    // Inizializzazione LED ring e encoder
+    led_ring_init();
+    encoder_init();
+
     // Carica assegnazioni salvate
     g_assignments = storage_load_assignments();
     Serial.printf("[MAIN] %d assegnazioni caricate da NVS\n", (int)g_assignments.size());
+
+    // Carica configurazione sistema
+    SystemConfig sysCfg = storage_load_system_config();
+    led_ring_set_volume(sysCfg.masterVolume > 0 ? sysCfg.masterVolume : 80);
 
     // UI display
     lvgl_init();
@@ -175,13 +192,15 @@ void loop() {
     lv_timer_handler();      // Task LVGL (~5ms)
     web_server_handle();     // No-op per ESPAsyncWebServer
     usb_storage_tick();      // Gestione eventi USB
+    encoder_tick();
+    led_ring_update();
 
     // Genera tono di test se in modalità TestTone
     if (getAudioMode() == AudioMode::TestTone) {
         audio_generate_test_tone(1000.0f, 0.5f);
     } else {
         // ADC processing (FFT audio-reactive)
-        audio_fft_process_stub();
+        audio_fft_process();
     }
 
     delay(5);

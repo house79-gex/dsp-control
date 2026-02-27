@@ -10,6 +10,8 @@
 
 static AutotuneStatus s_status = {};
 static bool s_initialized = false;
+static RemoteFftData s_remoteFft = {};
+static bool s_remoteMode = false;
 
 // Frequenze di analisi (octave spacing da 20Hz a 20kHz, 64 punti)
 static const float ANALYSIS_FREQS[64] = {
@@ -298,6 +300,7 @@ bool autotune_apply_results() {
 }
 
 void autotune_cancel() {
+    s_remoteMode = false;
     if (s_status.state != AutotuneState::Idle) {
         // Ripristina mute a OFF e modalità audio
         dsp_set_group_mute(DspGroupType::ALL, false);
@@ -310,3 +313,43 @@ void autotune_cancel() {
 const AutotuneStatus* autotune_get_status() {
     return &s_status;
 }
+
+bool autotune_start_remote(uint8_t targetId) {
+    if (!s_initialized) autotune_init();
+    if (s_status.state != AutotuneState::Idle) {
+        Serial.println("[AUTOTUNE] Procedura già in corso");
+        return false;
+    }
+
+    s_remoteMode = true;
+    memset(&s_remoteFft, 0, sizeof(RemoteFftData));
+
+    s_status.mode             = AutotuneMode::Single;
+    s_status.targetDeviceId   = targetId;
+    s_status.currentDeviceIdx = 0;
+    s_status.numResults       = 0;
+    s_status.progress         = 0.0f;
+    s_status.totalDevices     = 1;
+    s_status.state            = AutotuneState::Generating;
+    set_status_message("Modalità smartphone: generazione sweep per cattura remota...");
+    // Genera sweep via DAC per lo smartphone
+    setAudioMode(AudioMode::TestTone);
+    return true;
+}
+
+void autotune_upload_fft(const float* bands, uint8_t numBands) {
+    if (!s_remoteMode || s_status.state != AutotuneState::Capturing) return;
+
+    uint8_t n = (numBands > 64) ? 64 : numBands;
+    memcpy(s_remoteFft.bands, bands, n * sizeof(float));
+    s_remoteFft.timestamp = millis();
+    s_remoteFft.valid = true;
+    Serial.printf("[AUTOTUNE] FFT remoto ricevuto: %d bande\n", n);
+
+    // Avanza stato a Analyzing
+    s_status.state = AutotuneState::Analyzing;
+}
+
+bool autotune_is_remote_mode() { return s_remoteMode; }
+
+const RemoteFftData* autotune_get_remote_fft() { return &s_remoteFft; }

@@ -25,6 +25,19 @@ enum class AutotuneMode {
     All             // Calibrazione impianto completo (tutte le casse)
 };
 
+// Sorgente microfono per autotune
+enum class AutoTuneSource {
+    LOCAL_MIC,        // Microfono locale (ES8388 ADC)
+    REMOTE_SMARTPHONE // Microfono smartphone via WiFi
+};
+
+// Stato autotune remoto (smartphone)
+struct RemoteFftData {
+    float bands[64];      // Bande FFT inviate dallo smartphone
+    uint32_t timestamp;   // Timestamp dati
+    bool valid;           // Dati validi
+};
+
 // Risultato autotune per una cassa
 struct AutotuneResult {
     uint8_t  deviceId;
@@ -70,3 +83,9 @@ const AutotuneStatus* autotune_get_status();
 
 // Tick periodico – avanzamento state machine (chiamare ogni ~100ms)
 void autotune_tick();
+
+// AutoTune remoto (microfono smartphone)
+bool autotune_start_remote(uint8_t targetId = 0);
+void autotune_upload_fft(const float* bands, uint8_t numBands);
+bool autotune_is_remote_mode();
+const RemoteFftData* autotune_get_remote_fft();

@@ -13,6 +13,7 @@
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <Arduino.h>
+#include <math.h>
 
 static AsyncWebServer s_server(80);
 
@@ -884,6 +885,130 @@ void web_server_init() {
     // ——— 404 catch-all ———
     s_server.onNotFound([](AsyncWebServerRequest* req) {
         req->send(404, "text/plain", "Not found");
+    });
+
+    // ——— Audio levels ———
+    s_server.on("/api/audio/levels", HTTP_GET, [](AsyncWebServerRequest* req) {
+        float left, right;
+        audio_get_channel_levels(left, right);
+        float peak = audio_get_peak_db();
+        StaticJsonDocument<256> doc;
+        doc["master_db"] = peak;
+        doc["left_db"]   = (left  > 1e-6f) ? 20.0f * log10f(left)  : -60.0f;
+        doc["right_db"]  = (right > 1e-6f) ? 20.0f * log10f(right) : -60.0f;
+        doc["peak"]      = (peak > -3.0f);
+        String out; serializeJson(doc, out);
+        req->send(200, "application/json", out);
+    });
+
+    // ——— Audio spectrum FFT ———
+    s_server.on("/api/audio/spectrum", HTTP_GET, [](AsyncWebServerRequest* req) {
+        const FftResult& fft = audio_get_fft_result();
+        StaticJsonDocument<1024> doc;
+        JsonArray arr = doc.createNestedArray("bands");
+        for (int i = 0; i < 32; i++) arr.add(fft.bands[i]);
+        doc["timestamp"] = fft.timestamp;
+        String out; serializeJson(doc, out);
+        req->send(200, "application/json", out);
+    });
+
+    // ——— AutoTune remoto (smartphone) ———
+    s_server.on("/api/autotune/start-remote", HTTP_POST, [](AsyncWebServerRequest* req) {},
+        nullptr,
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+            StaticJsonDocument<256> doc;
+            deserializeJson(doc, data, len);
+            uint8_t targetId = doc["targetId"] | 0;
+            bool ok = autotune_start_remote(targetId);
+            StaticJsonDocument<128> resp;
+            resp["ok"]      = ok;
+            resp["message"] = ok ? "AutoTune remoto avviato" : "Procedura già in corso";
+            String out; serializeJson(resp, out);
+            req->send(200, "application/json", out);
+        });
+
+    s_server.on("/api/autotune/upload-fft", HTTP_POST, [](AsyncWebServerRequest* req) {},
+        nullptr,
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+            StaticJsonDocument<2048> doc;
+            auto err = deserializeJson(doc, data, len);
+            if (err) { req->send(400, "application/json", "{\"error\":\"JSON invalido\"}"); return; }
+            JsonArray arr = doc["bands"].as<JsonArray>();
+            float bands[64];
+            uint8_t n = 0;
+            for (float v : arr) { if (n < 64) bands[n++] = v; }
+            autotune_upload_fft(bands, n);
+            req->send(200, "application/json", "{\"ok\":true}");
+        });
+
+    s_server.on("/api/autotune/sweep-status", HTTP_GET, [](AsyncWebServerRequest* req) {
+        const AutotuneStatus* st = autotune_get_status();
+        StaticJsonDocument<256> doc;
+        doc["state"]    = (int)st->state;
+        doc["progress"] = st->progress;
+        doc["message"]  = st->statusMessage;
+        doc["isRemote"] = autotune_is_remote_mode();
+        String out; serializeJson(doc, out);
+        req->send(200, "application/json", out);
+    });
+
+    // ——— Venue map ———
+    static String s_venueMapJson = "{}";
+    s_server.on("/api/venue/map", HTTP_GET, [](AsyncWebServerRequest* req) {
+        req->send(200, "application/json", s_venueMapJson);
+    });
+
+    s_server.on("/api/venue/map", HTTP_POST, [](AsyncWebServerRequest* req) {},
+        nullptr,
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+            s_venueMapJson = String((char*)data, len);
+            req->send(200, "application/json", "{\"ok\":true}");
+        });
+
+    s_server.on("/api/venue/calculate-delays", HTTP_POST, [](AsyncWebServerRequest* req) {},
+        nullptr,
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+            StaticJsonDocument<4096> doc;
+            auto err = deserializeJson(doc, data, len);
+            if (err) { req->send(400, "application/json", "{\"error\":\"JSON invalido\"}"); return; }
+            // Calcola e applica delay basati sulla distanza (Formula: delay_ms = dist_m / 343 * 1000)
+            StaticJsonDocument<1024> resp;
+            JsonArray delays = resp.createNestedArray("delays");
+            JsonArray speakers = doc["speakers"].as<JsonArray>();
+            JsonObject listener = doc["listenerPosition"].as<JsonObject>();
+            float lx = listener["x"] | 0.0f;
+            float ly = listener["y"] | 0.0f;
+            for (JsonObject spk : speakers) {
+                float sx = spk["x"] | 0.0f;
+                float sy = spk["y"] | 0.0f;
+                int   id = spk["id"] | 0;
+                float dx = sx - lx, dy = sy - ly;
+                float dist    = sqrtf(dx * dx + dy * dy);
+                float delayMs = dist / 343.0f * 1000.0f;
+                if (id > 0) dsp_set_speaker_delay((uint8_t)id, delayMs);
+                JsonObject d = delays.createNestedObject();
+                d["id"]       = id;
+                d["dist_m"]   = dist;
+                d["delay_ms"] = delayMs;
+            }
+            String out; serializeJson(resp, out);
+            req->send(200, "application/json", out);
+        });
+
+    // ——— Gruppi personalizzabili ———
+    s_server.on("/api/groups", HTTP_GET, [](AsyncWebServerRequest* req) {
+        StaticJsonDocument<2048> doc;
+        JsonArray arr = doc.createNestedArray("groups");
+        for (auto* g : dmx_get_all_groups()) {
+            JsonObject obj = arr.createNestedObject();
+            obj["id"]   = g->id;
+            obj["name"] = g->name;
+            obj["type"] = "dmx";
+            JsonArray fids = obj.createNestedArray("fixtureIds");
+            for (int i = 0; i < g->numFixtures; i++) fids.add(g->fixtureIds[i]);
+        }
+        String out; serializeJson(doc, out);
+        req->send(200, "application/json", out);
     });
 
     s_server.begin();

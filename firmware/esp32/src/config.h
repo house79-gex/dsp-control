@@ -39,3 +39,15 @@
 // WiFi AP
 #define WIFI_SSID   "SISTEMA_AUDIO_01"
 #define WIFI_PASS   "audio1234"
+
+// LED Ring encoder (WS2812B)
+#define LED_RING_VOL_PIN    39  // TODO: verificare GPIO
+#define LED_RING_BAL_PIN    40  // TODO: verificare GPIO
+#define LED_RING_COUNT      16  // Numero LED per anello
+
+// Encoder rotativi
+#define ENCODER_VOL_A       41  // TODO: verificare GPIO encoder volume A
+#define ENCODER_VOL_B       42  // TODO: verificare GPIO encoder volume B
+#define ENCODER_BAL_A       47  // TODO: verificare GPIO encoder balance A
+#define ENCODER_BAL_B       46  // TODO: verificare GPIO encoder balance B
+// NOTA: GPIO 48 è usato da LED_STATUS, usare GPIO 46 per ENCODER_BAL_B

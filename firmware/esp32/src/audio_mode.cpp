@@ -2,17 +2,33 @@
 #include "config.h"
 #include <driver/i2s.h>
 #include <math.h>
+#include <esp_dsp.h>
 
 // ======= Configurazione I2S =======
 // TODO: verificare numeri porta e pin con il modulo ES8388 fisico
 #define I2S_PORT        I2S_NUM_0
 #define I2S_SAMPLE_RATE 48000
 #define I2S_BUFFER_SIZE 256
+#define FFT_SIZE              512
+#define NUM_BANDS             32
+// Fattore di normalizzazione FFT: FFT_SIZE/4 perché le magnitudini tipiche dopo
+// dsps_cplx2reC_fc32 sono nell'ordine di N/4 per segnali a piena ampiezza
+#define FFT_NORM_FACTOR       (FFT_SIZE / 4.0f)
 
 static AudioMode s_currentMode = AudioMode::MixerPassThrough;
 
 // Buffer per generazione tono sinusoidale
 static int16_t s_toneBuf[I2S_BUFFER_SIZE * 2];  // stereo interleaved
+
+// FFT e VU meter
+static float s_fftInput[FFT_SIZE * 2];   // Complesso: re,im interleaved
+static float s_window[FFT_SIZE];
+static FftResult s_fftResult = {};
+static portMUX_TYPE s_fftMux = portMUX_INITIALIZER_UNLOCKED;
+static float s_peakDb = -60.0f;
+static float s_levelLeft = 0.0f;
+static float s_levelRight = 0.0f;
+static bool s_fftInitialized = false;
 
 void audio_init() {
     // Configura relay in modalità default (MixerPassThrough)
@@ -55,6 +71,14 @@ void audio_init() {
     }
 
     Serial.println("[AUDIO] I2S inizializzato");
+
+    // Inizializza tabelle FFT e finestra Hann
+    dsps_fft2r_init_fc32(nullptr, FFT_SIZE);
+    for (int i = 0; i < FFT_SIZE; i++) {
+        s_window[i] = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (FFT_SIZE - 1)));
+    }
+    s_fftInitialized = true;
+    Serial.println("[AUDIO] FFT inizializzato");
 }
 
 void setAudioMode(AudioMode mode) {
@@ -103,16 +127,95 @@ void audio_generate_test_tone(float frequencyHz, float amplitude) {
     }
 }
 
-void audio_fft_process_stub() {
-    // TODO: implementare analisi FFT con ESP-DSP library
-    // Esempio di utilizzo futuro:
-    //   float fftBuf[I2S_BUFFER_SIZE];
-    //   dsps_fft2r_fc32(fftBuf, I2S_BUFFER_SIZE);
-    //   dsps_bit_rev_fc32(fftBuf, I2S_BUFFER_SIZE);
-    //   dsps_cplx2reC_fc32(fftBuf, I2S_BUFFER_SIZE);
-    // Per ora si limita a leggere e scartare i dati ADC
-    static int16_t adcBuf[I2S_BUFFER_SIZE * 2];
+void audio_fft_process() {
+    // Leggi buffer I2S dall'ES8388 ADC
+    static int16_t adcBuf[FFT_SIZE * 2];  // stereo interleaved
     size_t bytesRead = 0;
     i2s_read(I2S_PORT, adcBuf, sizeof(adcBuf), &bytesRead, 10 / portTICK_PERIOD_MS);
-    (void)bytesRead;
+    if (bytesRead < sizeof(adcBuf)) return;
+
+    // Calcola livelli VU meter (canale L e R separati)
+    float sumL = 0.0f, sumR = 0.0f, peakL = 0.0f, peakR = 0.0f;
+    for (int i = 0; i < FFT_SIZE; i++) {
+        float l = adcBuf[i * 2]     / 32768.0f;
+        float r = adcBuf[i * 2 + 1] / 32768.0f;
+        sumL += l * l;
+        sumR += r * r;
+        if (fabsf(l) > peakL) peakL = fabsf(l);
+        if (fabsf(r) > peakR) peakR = fabsf(r);
+    }
+    float rmsL = sqrtf(sumL / FFT_SIZE);
+    float rmsR = sqrtf(sumR / FFT_SIZE);
+    float peak = fmaxf(peakL, peakR);
+
+    // Aggiorna livelli con thread safety
+    portENTER_CRITICAL(&s_fftMux);
+    s_levelLeft  = rmsL;
+    s_levelRight = rmsR;
+    s_peakDb = (peak > 1e-6f) ? 20.0f * log10f(peak) : -60.0f;
+    portEXIT_CRITICAL(&s_fftMux);
+
+    if (!s_fftInitialized) return;
+
+    // Applica finestra Hann al canale sinistro e prepara input FFT
+    for (int i = 0; i < FFT_SIZE; i++) {
+        float sample = (adcBuf[i * 2] / 32768.0f) * s_window[i];
+        s_fftInput[i * 2]     = sample;  // parte reale
+        s_fftInput[i * 2 + 1] = 0.0f;   // parte immaginaria
+    }
+
+    // Esegui FFT reale
+    dsps_fft2r_fc32(s_fftInput, FFT_SIZE);
+    dsps_bit_rev_fc32(s_fftInput, FFT_SIZE);
+    dsps_cplx2reC_fc32(s_fftInput, FFT_SIZE);
+
+    // Calcola 32 bande logaritmiche (20Hz-20kHz)
+    FftResult result;
+    result.timestamp = millis();
+    const float freqRes = (float)I2S_SAMPLE_RATE / FFT_SIZE;
+    const float logMin = log10f(20.0f);
+    const float logMax = log10f(20000.0f);
+
+    for (int b = 0; b < NUM_BANDS; b++) {
+        float freqLow  = powf(10.0f, logMin + (float)b       * (logMax - logMin) / NUM_BANDS);
+        float freqHigh = powf(10.0f, logMin + (float)(b + 1) * (logMax - logMin) / NUM_BANDS);
+        int binLow  = (int)(freqLow  / freqRes);
+        int binHigh = (int)(freqHigh / freqRes);
+        if (binHigh >= FFT_SIZE / 2) binHigh = FFT_SIZE / 2 - 1;
+        if (binLow  < 1)             binLow  = 1;
+        if (binLow  > binHigh)       binLow  = binHigh;
+
+        float maxMag = 0.0f;
+        for (int bin = binLow; bin <= binHigh; bin++) {
+            float re = s_fftInput[bin * 2];
+            float im = s_fftInput[bin * 2 + 1];
+            float mag = sqrtf(re * re + im * im);
+            if (mag > maxMag) maxMag = mag;
+        }
+        // Normalizza (0.0-1.0)
+        result.bands[b] = fminf(1.0f, maxMag / FFT_NORM_FACTOR);
+    }
+
+    portENTER_CRITICAL(&s_fftMux);
+    s_fftResult = result;
+    portEXIT_CRITICAL(&s_fftMux);
+}
+
+float audio_get_peak_db() {
+    float val;
+    portENTER_CRITICAL(&s_fftMux);
+    val = s_peakDb;
+    portEXIT_CRITICAL(&s_fftMux);
+    return val;
+}
+
+void audio_get_channel_levels(float& left, float& right) {
+    portENTER_CRITICAL(&s_fftMux);
+    left  = s_levelLeft;
+    right = s_levelRight;
+    portEXIT_CRITICAL(&s_fftMux);
+}
+
+const FftResult& audio_get_fft_result() {
+    return s_fftResult;
 }
