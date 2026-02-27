@@ -49,7 +49,7 @@ static void simulate_frequency_response(AutotuneResult* result) {
         }
 
         // Aggiungi leggera variazione casuale ±2dB (realistica)
-        float variation = ((float)(esp_random() % 400) - 200) / 100.0f;
+        float variation = ((float)esp_random() / (float)UINT32_MAX) * 4.0f - 2.0f;
         magnitude += variation;
 
         result->responseFreq[i]      = freq;
