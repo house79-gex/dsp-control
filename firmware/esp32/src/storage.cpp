@@ -390,12 +390,13 @@ void storage_clear_mic_calibration() {
 
 #include "wled_client.h"
 
-static const char* NVS_KEY_WLED_CTRL  = "wled_ctrl";
-static const char* NVS_KEY_WLED_SCENE = "wled_scene";
+static const char*   NVS_KEY_WLED_CTRL  = "wled_ctrl";
+static const char*   NVS_KEY_WLED_SCENE = "wled_scene";
+static const size_t  WLED_JSON_DOC_SIZE = 4096;
 
 void storage_save_wled_controllers() {
     uint8_t n = wled_get_controller_count();
-    DynamicJsonDocument doc(4096);
+    DynamicJsonDocument doc(WLED_JSON_DOC_SIZE);
     JsonArray arr = doc.to<JsonArray>();
     for (uint8_t i = 0; i < n; i++) {
         WledController* c = wled_get_controller(i);
@@ -421,7 +422,7 @@ void storage_load_wled_controllers() {
     String json = s_prefs.getString(NVS_KEY_WLED_CTRL, "[]");
     if (json.isEmpty() || json == "[]") return;
 
-    DynamicJsonDocument doc(4096);
+    DynamicJsonDocument doc(WLED_JSON_DOC_SIZE);
     if (deserializeJson(doc, json)) return;
 
     for (JsonObject obj : doc.as<JsonArray>()) {
@@ -443,7 +444,7 @@ void storage_load_wled_controllers() {
 
 void storage_save_wled_scenes() {
     uint8_t n = wled_get_scene_count();
-    DynamicJsonDocument doc(4096);
+    DynamicJsonDocument doc(WLED_JSON_DOC_SIZE);
     JsonArray arr = doc.to<JsonArray>();
     for (uint8_t i = 0; i < n; i++) {
         WledScene* s = wled_get_scene(i);
@@ -472,7 +473,7 @@ void storage_load_wled_scenes() {
     String json = s_prefs.getString(NVS_KEY_WLED_SCENE, "[]");
     if (json.isEmpty() || json == "[]") return;
 
-    DynamicJsonDocument doc(4096);
+    DynamicJsonDocument doc(WLED_JSON_DOC_SIZE);
     if (deserializeJson(doc, json)) return;
 
     for (JsonObject obj : doc.as<JsonArray>()) {

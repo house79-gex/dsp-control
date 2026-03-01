@@ -116,7 +116,10 @@ static void wled_health_task(void* param) {
 void wled_client_init() {
     s_ctrl_count  = 0;
     s_scene_count = 0;
-    xTaskCreatePinnedToCore(wled_health_task, "WLED_HB", 4096, nullptr, 2, nullptr, 0);
+    BaseType_t ret = xTaskCreatePinnedToCore(wled_health_task, "WLED_HB", 4096, nullptr, 2, nullptr, 0);
+    if (ret != pdPASS) {
+        Serial.println("[WLED] ERRORE: impossibile creare task health-check");
+    }
     Serial.println("[WLED] Client inizializzato");
 }
 

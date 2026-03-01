@@ -97,15 +97,31 @@ class _WledScreenState extends State<WledScreen> {
   }
 
   Future<void> _applyColor() async {
-    await widget.api.setWledColor(
-        _selCtrl, _selZone, _r, _g, _b);
-    await widget.api.setWledBrightness(
-        _selCtrl, _selZone, _brightness.round());
+    try {
+      await widget.api.setWledColor(
+          _selCtrl, _selZone, _r, _g, _b);
+      await widget.api.setWledBrightness(
+          _selCtrl, _selZone, _brightness.round());
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _applyEffect() async {
-    await widget.api.setWledEffect(
-        _selCtrl, _selZone, _effectId, _speed.round(), _intensity.round());
+    try {
+      await widget.api.setWledEffect(
+          _selCtrl, _selZone, _effectId, _speed.round(), _intensity.round());
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _applyScene(int idx) async {
