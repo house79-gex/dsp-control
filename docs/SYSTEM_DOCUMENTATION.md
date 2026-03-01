@@ -55,6 +55,7 @@ Versione: 2.0 | Lingua: Italiano
 | USB Storage          | `usb_storage.h/cpp`    | Import/export configurazione via USB-C         |
 | Web Server           | `web_server.h/cpp`     | WiFi AP + REST API completa                    |
 | Storage NVS          | `storage.h/cpp`        | Persistenza assegnazioni su NVS                |
+| WLED Client          | `wled_client.h/cpp`    | Controllo strip neon LED via Wi-Fi (HTTP JSON) |
 | Audio Mode           | `audio_mode.h/cpp`     | ES8388 I2S, relay, FFT stub                    |
 | RS-485               | `rs485.h/cpp`          | Driver UART RS-485, TX/RX                      |
 | Config               | `config.h`             | Pin e costanti di sistema                      |
@@ -68,6 +69,7 @@ Versione: 2.0 | Lingua: Italiano
 | `audio_fft_task`   | 0    | 5        | 25ms      | Elaborazione FFT audio-reactive     |
 | `dsp_heartbeat`    | 1    | 3        | 10ms      | Heartbeat DSP + RX RS-485           |
 | `autotune_task`    | 0    | 2        | 100ms     | State machine calibrazione          |
+| `wled_health`      | 0    | 2        | 5000ms    | Health-check controller WLED Wi-Fi  |
 | Loop Arduino       | 1    | 1        | 5ms       | LVGL + USB + TestTone               |
 
 ### 2.3 Flusso Dati
@@ -393,11 +395,133 @@ Il sistema analizza il segnale audio in tempo reale e controlla le luci di conse
 - ✅ Sistema audio-reactive con FFT e 8 scenari
 - ✅ AutoTune automatico (singola cassa + impianto completo)
 - ✅ USB-C import/export configurazione completa
-- ✅ 40+ endpoint REST API
+- ✅ 40+ endpoint REST API (incluso WLED)
 - ✅ App Flutter responsive (smartphone + tablet)
 - ✅ Modalità Base / Esperto con password opzionale
 - ✅ 12 preset DSP di fabbrica + slot personalizzabili
 - ✅ Task FreeRTOS dedicati per DMX (Core 1) e FFT (Core 0)
+- ✅ Controllo WLED Neon LED via Wi-Fi (HTTP JSON API + UDP sync)
+
+---
+
+## 13. WLED – Controllo Neon LED
+
+### 13.1 Architettura
+
+```
+ESP32-S3 (Access Point 192.168.4.1)
+    │
+    ├── Wi-Fi AP (SISTEMA_AUDIO_01)
+    │       │
+    │       ├── GLEDOPTO GL-C-015WL-D (192.168.4.10) — Cabinet_SX
+    │       │       ├── CH1 → Logo SX  (WS2811 neon ~80px)
+    │       │       ├── CH2 → Logo DX  (WS2811 neon ~80px)
+    │       │       ├── CH3 → Front Frame (WS2811 neon ~96px)
+    │       │       └── CH4 → Spare
+    │       │
+    │       └── GLEDOPTO GL-C-015WL-D (192.168.4.11) — Cabinet_DX
+    │               ├── CH1 → Logo SX
+    │               ├── CH2 → Logo DX
+    │               ├── CH3 → Front Frame
+    │               └── CH4 → Spare
+    │
+    └── HTTP JSON API POST /json/state → WLED controller
+        UDP port 21324               → WLED real-time sync
+```
+
+### 13.2 Hardware per Cabinet
+
+| Componente              | Modello/Specifiche                              |
+|-------------------------|-------------------------------------------------|
+| Controller WLED         | GLEDOPTO GL-C-015WL-D (ESP32, 2CH o 4CH)       |
+| Strip LED               | WS2811 12V RGBIC neon flex, 96 LED/m            |
+| Passo pixel             | 1 pixel ogni 3 LED (taglio ogni 3 LED)          |
+| Alimentatore            | Mean Well LRS-150-12 (12V, 12.5A, 150W)        |
+
+**Zone per cabinet:**
+- `logo_left` — profilo SX del logo sulla cassa
+- `logo_right` — profilo DX del logo sulla cassa
+- `front_frame` — cornice frontale inferiore/superiore
+- `spare` — canale aggiuntivo (facoltativo)
+
+### 13.3 Calcolo Alimentazione
+
+```
+Striscia neon WS2811 12V: ~9.6W/m
+Lunghezza totale stimata per cabinet: ~8m
+
+P_totale = 8m × 9.6W/m = 76.8W
+I_totale = 76.8W / 12V = 6.4A
+
+Alimentatore consigliato: Mean Well LRS-150-12 (12V, 12.5A, 150W) ✓
+Margine di sicurezza: 12.5A / 6.4A ≈ 195%
+```
+
+### 13.4 Schema Cablaggio
+
+```
+Mean Well LRS-150-12 (12V, 12.5A)
+│
+├── +12V ──→ Strip VCC (rosso)
+├── GND  ──→ Strip GND (nero/bianco)
+│
+└── GLEDOPTO GL-C-015WL-D
+        │
+        ├── +5V/USB → alimentazione logica controller (via USB-C o 5V separato)
+        ├── CH1 DATA ──[220Ω]──→ Strip DATA zona logo_left
+        ├── CH2 DATA ──[220Ω]──→ Strip DATA zona logo_right
+        ├── CH3 DATA ──[220Ω]──→ Strip DATA zona front_frame
+        └── CH4 DATA ──[220Ω]──→ Strip DATA zona spare
+
+Resistore sui DATA:  220Ω–470Ω sul segnale DATA
+Condensatore:        470µF–1000µF/25V vicino al connettore alimentazione strip
+Nota:                Il terminatore DMX 120Ω si applica solo all'ultimo device RS-485,
+                     NON alle strip WS2811 (protocollo unidirezionale)
+```
+
+### 13.5 Layout Fisico nel Cabinet
+
+```
+  [ TOP ]
+  ┌─────────────────────────────────────────┐
+  │  Controller WLED (soffitto, scomparto    │
+  │  tweeter)                               │
+  ├────────────────┬────────────────────────┤
+  │  Horn/tweeter  │  Crossover (divisore)  │
+  ├────────────────┴────────────────────────┤
+  │         Woofer / midrange               │
+  ├─────────────────────────────────────────┤
+  │  Cavi audio    │    Cavi 12V            │
+  │  (sx)          │    (dx, separati)      │
+  ├─────────────────────────────────────────┤
+  │  PSU LRS-150-12 (box inferiore,         │
+  │  con ventilazione)                      │
+  └─────────────────────────────────────────┘
+  [ BOTTOM ]
+
+  Neon logo:
+    ← [logo_left]  [ LOGO ]  [logo_right] →
+    ─────────── [front_frame] ───────────
+```
+
+### 13.6 API REST WLED (14 endpoint)
+
+| Metodo | Endpoint | Descrizione |
+|--------|----------|-------------|
+| GET    | `/api/wled/controllers`       | Lista controller + stato |
+| POST   | `/api/wled/controllers`       | Aggiungi controller |
+| DELETE | `/api/wled/controllers`       | Rimuovi controller |
+| POST   | `/api/wled/color`             | Imposta colore zona |
+| POST   | `/api/wled/brightness`        | Imposta luminosità zona |
+| POST   | `/api/wled/effect`            | Imposta effetto zona |
+| GET    | `/api/wled/scenes`            | Lista scene WLED |
+| POST   | `/api/wled/scenes`            | Crea/aggiorna scena |
+| POST   | `/api/wled/scenes/apply`      | Applica scena |
+| POST   | `/api/wled/sync`              | Sincronizza tutti |
+| POST   | `/api/wled/blackout`          | Blackout tutti |
+| POST   | `/api/wled/mirror`            | Mirror due zone |
+| POST   | `/api/wled/discover`          | Scopri controller via UDP |
+| GET    | `/api/wled/status`            | Stato sistema WLED |
 
 ### v1.0.0 (baseline)
 - Stub RS-485 con 3 dispositivi simulati

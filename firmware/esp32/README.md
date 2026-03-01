@@ -30,17 +30,19 @@ src/
 ├── audio_mode.h/cpp         – I2S ES8388 + FFT reale ESP-DSP + VU meter
 ├── audio_reactive.h/cpp     – Audio-reactive DMX (6 bande frequenza)
 ├── rs485.h/cpp              – RS-485, discovery, beep pattern
-├── storage.h/cpp            – Persistenza NVS (preset, fixture, scene, config)
+├── storage.h/cpp            – Persistenza NVS (preset, fixture, scene, WLED)
 ├── dsp_control.h/cpp        – Controllo DSP CQ260D
 ├── dmx512.h/cpp             – Controller DMX512 con task FreeRTOS
 ├── autotune.h/cpp           – AutoTune locale + remoto via smartphone
 ├── led_ring.h/cpp           – LED ring WS2812B + encoder rotativi
+├── wled_client.h/cpp        – Client WLED per strip neon LED (Wi-Fi)
 ├── web_server.h/cpp         – WiFi AP + server HTTP REST
 └── ui/
     ├── ui_home.h/cpp            – Tab home LVGL
     ├── ui_discovery.h/cpp       – Tab discovery RS-485 LVGL
     ├── ui_assignment.h/cpp      – Tab assegnazione casse LVGL
     ├── ui_dmx.h/cpp             – Tab controllo luci DMX LVGL
+    ├── ui_wled.h/cpp            – Tab controllo neon WLED LVGL
     └── ui_dsp_advanced.h/cpp    – Tab DSP avanzato + VU meter LVGL
 ```
 
@@ -70,6 +72,7 @@ src/
 | LED ring WS2812B      | ✅ Nuovo     | Volume (verde→rosso) + balance (centro→sx/dx) |
 | Encoder rotativi      | ✅ Nuovo     | Decodifica quadraturale 4 passi/click         |
 | Mappa venue REST      | ✅ Nuovo     | Calcolo delay da posizione (dist/343*1000)    |
+| WLED neon LED client  | ✅ Nuovo     | HTTP JSON API + UDP discovery, task FreeRTOS  |
 | Relay DPDT            | ✅ Reale     | GPIO semplice                                 |
 | I2S ES8388            | ⚠️ Parziale | Init I2C ES8388 da completare                 |
 | RS-485 discovery      | 🔶 Stub      | Da collegare al protocollo CQ260D             |

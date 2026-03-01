@@ -6,6 +6,8 @@ import '../models/dmx_scene.dart';
 import '../models/dsp_preset.dart';
 import '../models/audio_reactive_config.dart';
 import '../models/mic_calibration.dart';
+import '../models/wled_controller.dart';
+import '../models/wled_scene.dart';
 
 class ApiClient {
   String baseUrl;
@@ -287,4 +289,45 @@ class ApiClient {
       _post('/api/system/mode', {'mode': mode, if (password != null) 'password': password});
 
   Future<Map<String, dynamic>> getUsbStatus() => _get('/api/system/usb-status');
+
+  // ——— WLED / Neon LED ———
+
+  Future<Map<String, dynamic>> getWledControllers() => _get('/api/wled/controllers');
+
+  Future<void> addWledController(Map<String, dynamic> ctrl) =>
+      _post('/api/wled/controllers', ctrl);
+
+  Future<void> removeWledController(int id) =>
+      _delete('/api/wled/controllers', {'id': id});
+
+  Future<void> setWledColor(int ctrl, int zone, int r, int g, int b) =>
+      _post('/api/wled/color', {'ctrl': ctrl, 'zone': zone, 'r': r, 'g': g, 'b': b});
+
+  Future<void> setWledBrightness(int ctrl, int zone, int brightness) =>
+      _post('/api/wled/brightness', {'ctrl': ctrl, 'zone': zone, 'brightness': brightness});
+
+  Future<void> setWledEffect(int ctrl, int zone, int effectId, int speed, int intensity) =>
+      _post('/api/wled/effect', {
+        'ctrl': ctrl, 'zone': zone,
+        'effect_id': effectId, 'speed': speed, 'intensity': intensity,
+      });
+
+  Future<Map<String, dynamic>> getWledScenes() => _get('/api/wled/scenes');
+
+  Future<void> addWledScene(Map<String, dynamic> scene) =>
+      _post('/api/wled/scenes', scene);
+
+  Future<void> applyWledScene(int id, {bool all = true}) =>
+      _post('/api/wled/scenes/apply', {'id': id, 'all': all});
+
+  Future<void> wledSyncAll() => _post('/api/wled/sync');
+
+  Future<void> wledBlackout() => _post('/api/wled/blackout');
+
+  Future<void> wledMirrorZones(int ctrl, int zoneA, int zoneB) =>
+      _post('/api/wled/mirror', {'ctrl': ctrl, 'zone_a': zoneA, 'zone_b': zoneB});
+
+  Future<void> wledDiscover() => _post('/api/wled/discover');
+
+  Future<Map<String, dynamic>> getWledStatus() => _get('/api/wled/status');
 }
