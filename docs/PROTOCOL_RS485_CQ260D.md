@@ -321,3 +321,21 @@ Esempio: DspID = 0x0003
 3. **Half-duplex**: commutare DE/RE del MAX485 prima di trasmettere, tornare in ricezione dopo il flush
 4. **Checksum**: include TUTTI i byte del frame (sync, LEN, GRP, ID, payload), NON il byte checksum stesso
 5. **Nome campo**: `Threhold` e `ATack` sono scritti con questo typo nel firmware originale; mantenere per compatibilità
+
+---
+
+## 13. Nota: WLED – Protocollo Wi-Fi Separato
+
+Il controllo delle **strip neon LED WS2811** montate sulle casse è gestito tramite un
+protocollo **completamente separato** rispetto a RS-485:
+
+| Aspetto           | RS-485 (CQ260D)          | WLED (Neon LED)                  |
+|-------------------|--------------------------|----------------------------------|
+| Mezzo fisico      | RS-485 half-duplex       | Wi-Fi 802.11 b/g/n               |
+| Protocollo        | Frame binario proprietario | HTTP JSON API + UDP 21324       |
+| Controller target | DSP CQ260D / PDA1001     | GLEDOPTO GL-C-015WL-D (ESP32)   |
+| API firmware      | `rs485.h/cpp`            | `wled_client.h/cpp`              |
+| Terminazione      | 120Ω sull'ultimo device  | Non applicabile (Wi-Fi)          |
+
+Il terminatore da 120Ω è richiesto **solo** sull'ultimo dispositivo della catena RS-485.
+Le strip WS2811 usano un protocollo unidirezionale a un filo (DATA) e **non** richiedono terminazione.

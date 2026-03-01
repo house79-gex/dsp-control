@@ -385,3 +385,112 @@ void storage_clear_mic_calibration() {
     s_prefs.remove("mic_cal");
     Serial.println("[STORAGE] Calibrazione microfono cancellata");
 }
+
+// ======= Persistenza Controller e Scene WLED =======
+
+#include "wled_client.h"
+
+static const char* NVS_KEY_WLED_CTRL  = "wled_ctrl";
+static const char* NVS_KEY_WLED_SCENE = "wled_scene";
+
+void storage_save_wled_controllers() {
+    uint8_t n = wled_get_controller_count();
+    DynamicJsonDocument doc(4096);
+    JsonArray arr = doc.to<JsonArray>();
+    for (uint8_t i = 0; i < n; i++) {
+        WledController* c = wled_get_controller(i);
+        JsonObject obj = arr.createNestedObject();
+        obj["name"]         = c->name;
+        obj["ip"]           = c->ip;
+        obj["num_channels"] = c->num_channels;
+        obj["sync_enabled"] = c->sync_enabled;
+        JsonArray ppc  = obj.createNestedArray("pixels_per_ch");
+        JsonArray zmap = obj.createNestedArray("zone_map");
+        for (int ch = 0; ch < 4; ch++) {
+            ppc.add(c->pixels_per_ch[ch]);
+            zmap.add((int)c->zone_map[ch]);
+        }
+    }
+    String buf;
+    serializeJson(doc, buf);
+    s_prefs.putString(NVS_KEY_WLED_CTRL, buf.c_str());
+    Serial.printf("[STORAGE] Salvati %d controller WLED\n", n);
+}
+
+void storage_load_wled_controllers() {
+    String json = s_prefs.getString(NVS_KEY_WLED_CTRL, "[]");
+    if (json.isEmpty() || json == "[]") return;
+
+    DynamicJsonDocument doc(4096);
+    if (deserializeJson(doc, json)) return;
+
+    for (JsonObject obj : doc.as<JsonArray>()) {
+        WledController c = {};
+        strncpy(c.name, obj["name"] | "", sizeof(c.name) - 1);
+        strncpy(c.ip,   obj["ip"]   | "", sizeof(c.ip)   - 1);
+        c.num_channels = obj["num_channels"] | 2;
+        c.sync_enabled = obj["sync_enabled"] | false;
+        JsonArray ppc  = obj["pixels_per_ch"].as<JsonArray>();
+        JsonArray zmap = obj["zone_map"].as<JsonArray>();
+        for (int ch = 0; ch < 4; ch++) {
+            c.pixels_per_ch[ch] = ppc[ch] | 80;
+            c.zone_map[ch]      = (WledZone)(int)(zmap[ch] | ch);
+        }
+        wled_client_add_controller(c);
+    }
+    Serial.printf("[STORAGE] Caricati controller WLED da NVS\n");
+}
+
+void storage_save_wled_scenes() {
+    uint8_t n = wled_get_scene_count();
+    DynamicJsonDocument doc(4096);
+    JsonArray arr = doc.to<JsonArray>();
+    for (uint8_t i = 0; i < n; i++) {
+        WledScene* s = wled_get_scene(i);
+        JsonObject obj = arr.createNestedObject();
+        obj["name"]      = s->name;
+        obj["effect_id"] = s->effect_id;
+        obj["r"]         = s->r;
+        obj["g"]         = s->g;
+        obj["b"]         = s->b;
+        obj["r2"]        = s->r2;
+        obj["g2"]        = s->g2;
+        obj["b2"]        = s->b2;
+        obj["brightness"]= s->brightness;
+        obj["speed"]     = s->speed;
+        obj["intensity"] = s->intensity;
+        obj["mirror"]    = s->mirror;
+        obj["reverse"]   = s->reverse;
+    }
+    String buf;
+    serializeJson(doc, buf);
+    s_prefs.putString(NVS_KEY_WLED_SCENE, buf.c_str());
+    Serial.printf("[STORAGE] Salvate %d scene WLED\n", n);
+}
+
+void storage_load_wled_scenes() {
+    String json = s_prefs.getString(NVS_KEY_WLED_SCENE, "[]");
+    if (json.isEmpty() || json == "[]") return;
+
+    DynamicJsonDocument doc(4096);
+    if (deserializeJson(doc, json)) return;
+
+    for (JsonObject obj : doc.as<JsonArray>()) {
+        WledScene s = {};
+        strncpy(s.name, obj["name"] | "", sizeof(s.name) - 1);
+        s.effect_id = obj["effect_id"] | 0;
+        s.r         = obj["r"]         | 255;
+        s.g         = obj["g"]         | 255;
+        s.b         = obj["b"]         | 255;
+        s.r2        = obj["r2"]        | 0;
+        s.g2        = obj["g2"]        | 0;
+        s.b2        = obj["b2"]        | 0;
+        s.brightness= obj["brightness"]| 255;
+        s.speed     = obj["speed"]     | 128;
+        s.intensity = obj["intensity"] | 128;
+        s.mirror    = obj["mirror"]    | false;
+        s.reverse   = obj["reverse"]   | false;
+        wled_add_scene(s);
+    }
+    Serial.printf("[STORAGE] Caricate scene WLED da NVS\n");
+}

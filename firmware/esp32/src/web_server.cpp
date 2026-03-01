@@ -9,6 +9,7 @@
 #include "audio_reactive.h"
 #include "autotune.h"
 #include "usb_storage.h"
+#include "wled_client.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -1076,6 +1077,156 @@ void web_server_init() {
             for (int i = 0; i < g->numFixtures; i++) fids.add(g->fixtureIds[i]);
         }
         String out; serializeJson(doc, out);
+        req->send(200, "application/json", out);
+    });
+
+    // ——— WLED / Neon LED ———
+
+    s_server.on("/api/wled/controllers", HTTP_GET, [](AsyncWebServerRequest* req) {
+        StaticJsonDocument<2048> d;
+        JsonArray arr = d.createNestedArray("controllers");
+        uint8_t n = wled_get_controller_count();
+        for (uint8_t i = 0; i < n; i++) {
+            WledController* c = wled_get_controller(i);
+            JsonObject obj = arr.createNestedObject();
+            obj["id"]           = i;
+            obj["name"]         = c->name;
+            obj["ip"]           = c->ip;
+            obj["num_channels"] = c->num_channels;
+            obj["online"]       = c->online;
+            obj["sync_enabled"] = c->sync_enabled;
+            obj["last_seen_ms"] = c->last_seen_ms;
+        }
+        String out; serializeJson(d, out);
+        req->send(200, "application/json", out);
+    });
+
+    s_server.on("/api/wled/controllers", HTTP_POST, JSON_BODY_HANDLER({
+        WledController c = {};
+        strncpy(c.name, doc["name"] | "WLED", sizeof(c.name) - 1);
+        strncpy(c.ip,   doc["ip"]   | "192.168.4.10", sizeof(c.ip) - 1);
+        c.num_channels = doc["num_channels"] | 2;
+        c.sync_enabled = doc["sync_enabled"] | false;
+        for (int ch = 0; ch < 4; ch++) {
+            c.pixels_per_ch[ch] = doc["pixels_per_ch"][ch] | 80;
+            c.zone_map[ch]      = (WledZone)(int)(doc["zone_map"][ch] | ch);
+        }
+        wled_client_add_controller(c);
+        storage_save_wled_controllers();
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    s_server.on("/api/wled/controllers", HTTP_DELETE, JSON_BODY_HANDLER({
+        uint8_t idx = doc["id"] | 0;
+        wled_client_remove_controller(idx);
+        storage_save_wled_controllers();
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    s_server.on("/api/wled/color", HTTP_POST, JSON_BODY_HANDLER({
+        uint8_t ctrl = doc["ctrl"] | 0;
+        WledZone zone = (WledZone)(int)(doc["zone"] | 0);
+        wled_client_set_color(ctrl, zone,
+            doc["r"] | 255, doc["g"] | 255, doc["b"] | 255);
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    s_server.on("/api/wled/brightness", HTTP_POST, JSON_BODY_HANDLER({
+        uint8_t ctrl = doc["ctrl"] | 0;
+        WledZone zone = (WledZone)(int)(doc["zone"] | 0);
+        wled_client_set_brightness(ctrl, zone, doc["brightness"] | 255);
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    s_server.on("/api/wled/effect", HTTP_POST, JSON_BODY_HANDLER({
+        uint8_t ctrl = doc["ctrl"] | 0;
+        WledZone zone = (WledZone)(int)(doc["zone"] | 0);
+        wled_client_set_effect(ctrl, zone,
+            doc["effect_id"] | 0,
+            doc["speed"]     | 128,
+            doc["intensity"] | 128);
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    s_server.on("/api/wled/scenes", HTTP_GET, [](AsyncWebServerRequest* req) {
+        StaticJsonDocument<2048> d;
+        JsonArray arr = d.createNestedArray("scenes");
+        uint8_t n = wled_get_scene_count();
+        for (uint8_t i = 0; i < n; i++) {
+            WledScene* s = wled_get_scene(i);
+            JsonObject obj = arr.createNestedObject();
+            obj["id"]        = i;
+            obj["name"]      = s->name;
+            obj["effect_id"] = s->effect_id;
+            obj["r"]  = s->r; obj["g"]  = s->g; obj["b"]  = s->b;
+            obj["r2"] = s->r2; obj["g2"] = s->g2; obj["b2"] = s->b2;
+            obj["brightness"] = s->brightness;
+            obj["speed"]      = s->speed;
+            obj["intensity"]  = s->intensity;
+            obj["mirror"]     = s->mirror;
+            obj["reverse"]    = s->reverse;
+        }
+        String out; serializeJson(d, out);
+        req->send(200, "application/json", out);
+    });
+
+    s_server.on("/api/wled/scenes", HTTP_POST, JSON_BODY_HANDLER({
+        WledScene s = {};
+        strncpy(s.name, doc["name"] | "Scena", sizeof(s.name) - 1);
+        s.effect_id = doc["effect_id"] | 0;
+        s.r  = doc["r"]  | 255; s.g  = doc["g"]  | 255; s.b  = doc["b"]  | 255;
+        s.r2 = doc["r2"] | 0;   s.g2 = doc["g2"] | 0;   s.b2 = doc["b2"] | 0;
+        s.brightness = doc["brightness"] | 255;
+        s.speed      = doc["speed"]      | 128;
+        s.intensity  = doc["intensity"]  | 128;
+        s.mirror     = doc["mirror"]     | false;
+        s.reverse    = doc["reverse"]    | false;
+        wled_add_scene(s);
+        storage_save_wled_scenes();
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    // POST /api/wled/scenes/{id}/apply?all=true|false
+    s_server.on("/api/wled/scenes/apply", HTTP_POST, JSON_BODY_HANDLER({
+        uint8_t idx = doc["id"] | 0;
+        bool all    = doc["all"] | true;
+        wled_client_apply_scene(idx, all);
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    s_server.on("/api/wled/sync", HTTP_POST, [](AsyncWebServerRequest* req) {
+        wled_client_sync_all();
+        req->send(200, "application/json", "{\"ok\":true}");
+    });
+
+    s_server.on("/api/wled/blackout", HTTP_POST, [](AsyncWebServerRequest* req) {
+        wled_client_blackout();
+        req->send(200, "application/json", "{\"ok\":true}");
+    });
+
+    s_server.on("/api/wled/mirror", HTTP_POST, JSON_BODY_HANDLER({
+        uint8_t ctrl  = doc["ctrl"]   | 0;
+        WledZone za   = (WledZone)(int)(doc["zone_a"] | 0);
+        WledZone zb   = (WledZone)(int)(doc["zone_b"] | 1);
+        wled_client_mirror_zones(ctrl, za, zb);
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    s_server.on("/api/wled/discover", HTTP_POST, [](AsyncWebServerRequest* req) {
+        wled_client_discover();
+        req->send(200, "application/json", "{\"ok\":true}");
+    });
+
+    s_server.on("/api/wled/status", HTTP_GET, [](AsyncWebServerRequest* req) {
+        StaticJsonDocument<512> d;
+        d["controller_count"] = wled_get_controller_count();
+        uint8_t online = 0;
+        for (uint8_t i = 0; i < wled_get_controller_count(); i++) {
+            WledController* c = wled_get_controller(i);
+            if (c && c->online) online++;
+        }
+        d["online_count"] = online;
+        String out; serializeJson(d, out);
         req->send(200, "application/json", out);
     });
 

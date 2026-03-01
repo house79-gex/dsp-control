@@ -15,14 +15,18 @@ Il sistema gestisce un impianto audio PA multi-cassa + illuminazione scenica da 
 - **VU meter** L/R con picco dBFS
 - **LED ring WS2812B** attorno agli encoder rotativi volume/balance
 - **Mappa venue 2D** con calcolo automatico delay per allineamento temporale
-- **Display touch 5"** LVGL 800×480 con tab Home/Discovery/Assegnazione/Luci/DSP
+- **WLED Neon LED**: strip WS2811 12V sulle casse via controller GLEDOPTO Wi-Fi
+- **Display touch 5"** LVGL 800×480 con tab Home/Discovery/Assegnazione/Luci/DSP/Neon
 - **App Flutter Android** per controllo da smartphone + tablet
+- **Anteprima HTML** (`web/preview.html`) interfaccia completa standalone
 
 ## Struttura del Progetto
 
 ```
 dsp-control/
 ├── README.md
+├── web/
+│   └── preview.html         ← Anteprima HTML interfaccia completa (standalone)
 ├── docs/
 │   └── v2_Riepilogo.md
 ├── firmware/
@@ -35,17 +39,19 @@ dsp-control/
 │           ├── audio_mode.h/cpp     ← I2S ES8388 + FFT reale + VU meter
 │           ├── audio_reactive.h/cpp ← audio-reactive DMX (6 bande)
 │           ├── rs485.h/cpp          ← RS-485 discovery/controllo
-│           ├── storage.h/cpp        ← persistenza NVS (preset, fixture, scene, config)
+│           ├── storage.h/cpp        ← persistenza NVS (preset, fixture, scene, WLED)
 │           ├── dsp_control.h/cpp    ← controllo DSP CQ260D
 │           ├── dmx512.h/cpp         ← controller DMX512
 │           ├── autotune.h/cpp       ← autotune locale + remoto smartphone
 │           ├── led_ring.h/cpp       ← LED ring WS2812B + encoder rotativi
+│           ├── wled_client.h/cpp    ← WLED neon LED client Wi-Fi
 │           ├── web_server.h/cpp     ← WiFi AP + REST API
 │           └── ui/
 │               ├── ui_home.h/cpp
 │               ├── ui_discovery.h/cpp
 │               ├── ui_assignment.h/cpp
 │               ├── ui_dmx.h/cpp         ← tab DMX LVGL
+│               ├── ui_wled.h/cpp        ← tab Neon WLED LVGL
 │               └── ui_dsp_advanced.h/cpp ← tab DSP avanzato + VU meter LVGL
 └── app/
     └── flutter/
@@ -59,7 +65,9 @@ dsp-control/
             │   ├── dmx_fixture.dart
             │   ├── dmx_scene.dart
             │   ├── audio_reactive_config.dart
-            │   └── venue_map.dart        ← modello mappa venue 2D
+            │   ├── venue_map.dart        ← modello mappa venue 2D
+            │   ├── wled_controller.dart  ← modello controller WLED
+            │   └── wled_scene.dart       ← modello scena WLED
             ├── services/api_client.dart
             └── screens/
                 ├── home_screen.dart      ← VU meter L/R real-time
@@ -69,6 +77,7 @@ dsp-control/
                 ├── dsp_advanced_screen.dart
                 ├── venue_map_screen.dart ← mappa 2D con calcolo delay
                 ├── autotune_screen.dart  ← autotune locale/smartphone
+                ├── wled_screen.dart      ← controllo neon LED WLED
                 └── settings_screen.dart
 ```
 
@@ -118,6 +127,11 @@ flutter build apk
 | GET | `/api/venue/map` | Mappa venue |
 | POST | `/api/venue/calculate-delays` | Calcola delay da posizioni |
 | GET | `/api/groups` | Gruppi DMX |
+| GET | `/api/wled/controllers` | Lista controller WLED + stato |
+| POST | `/api/wled/color` | Imposta colore zona WLED |
+| POST | `/api/wled/effect` | Imposta effetto WLED |
+| POST | `/api/wled/blackout` | Blackout tutti i controller WLED |
+| POST | `/api/wled/discover` | Scopri controller WLED via UDP |
 
 ## Stato Sviluppo
 
@@ -136,6 +150,7 @@ flutter build apk
 | Encoder rotativi        | ✅ Completo  |
 | Mappa venue 2D          | ✅ Completo  |
 | App Flutter             | ✅ Completo  |
+| WLED Neon LED client    | ✅ Completo  |
 | RS-485 discovery        | 🔶 Stub      |
 | DSP CQ260D protocollo   | 🔶 Parziale  |
 | LVGL driver display     | 🔶 Stub      |

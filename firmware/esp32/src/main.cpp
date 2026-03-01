@@ -11,11 +11,13 @@
 #include "autotune.h"
 #include "usb_storage.h"
 #include "web_server.h"
+#include "wled_client.h"
 #include "ui/ui_home.h"
 #include "ui/ui_discovery.h"
 #include "ui/ui_assignment.h"
 #include "ui/ui_dmx.h"
 #include "ui/ui_dsp_advanced.h"
+#include "ui/ui_wled.h"
 #include "led_ring.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -81,9 +83,11 @@ static void ui_create_tabview() {
 
     lv_obj_t* tabDmx = lv_tabview_add_tab(tabview, LV_SYMBOL_EYE_OPEN " Luci");
     lv_obj_t* tabDsp = lv_tabview_add_tab(tabview, LV_SYMBOL_SETTINGS " DSP");
+    lv_obj_t* tabNeon = lv_tabview_add_tab(tabview, LV_SYMBOL_LED " Neon");
 
     ui_dmx_create(tabDmx);
     ui_dsp_advanced_create(tabDsp);
+    ui_wled_create(tabNeon);
 }
 
 // ======= Task FreeRTOS DSP heartbeat (su Core 1) =======
@@ -151,6 +155,9 @@ void setup() {
     // Inizializzazione USB storage
     usb_storage_init();
 
+    // Inizializzazione WLED client
+    wled_client_init();
+
     // Inizializzazione LED ring e encoder
     led_ring_init();
     encoder_init();
@@ -162,6 +169,10 @@ void setup() {
     // Carica configurazione sistema
     SystemConfig sysCfg = storage_load_system_config();
     led_ring_set_volume(sysCfg.masterVolume > 0 ? sysCfg.masterVolume : 80);
+
+    // Carica controller e scene WLED da NVS
+    storage_load_wled_controllers();
+    storage_load_wled_scenes();
 
     // UI display
     lvgl_init();

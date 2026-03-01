@@ -34,14 +34,16 @@ flutter build apk --release
 
 ```
 lib/
-├── main.dart                        – Entry point, navigazione (5 tab)
+├── main.dart                        – Entry point, navigazione (6 tab)
 ├── models/
 │   ├── speaker.dart                 – Modello cassa (Speaker)
 │   ├── dsp_preset.dart              – Preset DSP
 │   ├── dmx_fixture.dart             – Fixture DMX
 │   ├── dmx_scene.dart               – Scena DMX
 │   ├── audio_reactive_config.dart   – Config audio-reactive
-│   └── venue_map.dart               – Mappa venue 2D con elementi
+│   ├── venue_map.dart               – Mappa venue 2D con elementi
+│   ├── wled_controller.dart         – Modello controller WLED
+│   └── wled_scene.dart              – Modello scena WLED
 ├── services/
 │   └── api_client.dart              – Client HTTP REST per ESP32
 └── screens/
@@ -52,6 +54,7 @@ lib/
     ├── dsp_advanced_screen.dart     – EQ, compressor, noise gate
     ├── venue_map_screen.dart        – Mappa 2D venue + calcolo delay
     ├── autotune_screen.dart         – AutoTune locale/smartphone
+    ├── wled_screen.dart             – Controllo neon LED WLED
     └── settings_screen.dart         – Impostazioni
 ```
 
@@ -96,6 +99,15 @@ Visualizza barre con cambio colore: verde → arancio → rosso.
 | `/api/groups`                   | GET    | Gruppi DMX                       |
 | `/api/dsp/autotune/start`       | POST   | AutoTune locale                  |
 | `/api/dsp/autotune/status`      | GET    | Stato autotune                   |
+| `/api/wled/controllers`         | GET    | Lista controller WLED + stato    |
+| `/api/wled/color`               | POST   | Imposta colore zona              |
+| `/api/wled/effect`              | POST   | Imposta effetto zona             |
+| `/api/wled/brightness`          | POST   | Imposta luminosità zona          |
+| `/api/wled/scenes`              | GET/POST| Scene WLED                      |
+| `/api/wled/scenes/apply`        | POST   | Applica scena WLED               |
+| `/api/wled/sync`                | POST   | Sincronizza tutti i controller   |
+| `/api/wled/blackout`            | POST   | Blackout tutti i controller      |
+| `/api/wled/discover`            | POST   | Scopri controller via UDP        |
 
 
 App Android per il controllo del sistema audio PA via WiFi, comunicando con il firmware ESP32-S3.

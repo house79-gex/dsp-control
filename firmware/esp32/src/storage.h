@@ -45,3 +45,10 @@ SystemConfig storage_load_system_config();
 void storage_save_mic_calibration(const MicCalibration& cal);
 bool storage_load_mic_calibration(MicCalibration& cal);
 void storage_clear_mic_calibration();
+
+// Controller e scene WLED
+#include "wled_client.h"
+void storage_save_wled_controllers();
+void storage_load_wled_controllers();
+void storage_save_wled_scenes();
+void storage_load_wled_scenes();

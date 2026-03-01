@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSP Control – Anteprima Interfaccia</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #1a1a2e;
+      --panel:    #16213e;
+      --card:     #0f3460;
+      --accent:   #e94560;
+      --accent2:  #0055cc;
+      --text:     #e0e0e0;
+      --muted:    #7a8aaa;
+      --border:   rgba(255,255,255,0.1);
+      --online:   #4caf50;
+      --offline:  #f44336;
+      --radius:   8px;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif;
+           font-size: 14px; min-height: 100vh; }
+
+    /* ===== TOP BAR ===== */
+    .topbar { background: var(--panel); padding: 10px 20px; display: flex;
+              align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+    .topbar .logo { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+    .topbar .sub  { color: var(--muted); font-size: 12px; }
+    .topbar .badge { background: var(--accent); color: #fff; border-radius: 12px;
+                     padding: 2px 10px; font-size: 11px; margin-left: auto; }
+
+    /* ===== TABS ===== */
+    .tabs { display: flex; background: var(--panel); border-bottom: 2px solid var(--border); }
+    .tabs button { background: none; border: none; color: var(--muted); padding: 12px 24px;
+                   cursor: pointer; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+                   border-bottom: 3px solid transparent; transition: all .2s; }
+    .tabs button:hover   { color: var(--text); }
+    .tabs button.active  { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ===== TAB CONTENT ===== */
+    .tab-content { display: none; padding: 20px; }
+    .tab-content.active { display: block; }
+
+    /* ===== CARDS / PANELS ===== */
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 16px; margin-bottom: 16px; }
+    .card h3 { font-size: 12px; text-transform: uppercase; color: var(--muted);
+               letter-spacing: 1px; margin-bottom: 12px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; }
+                                 .grid-3 { grid-template-columns: 1fr 1fr; } }
+
+    /* ===== BUTTONS ===== */
+    .btn { display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: var(--radius);
+           padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: filter .15s; }
+    .btn:hover { filter: brightness(1.15); }
+    .btn-accent  { background: var(--accent);  color: #fff; }
+    .btn-blue    { background: var(--accent2); color: #fff; }
+    .btn-dark    { background: var(--card);    color: var(--text);   border: 1px solid var(--border); }
+    .btn-red     { background: #cc0000;        color: #fff; }
+    .btn-green   { background: #226622;        color: #fff; }
+    .btn-sm      { padding: 5px 10px; font-size: 12px; }
+    .btn-full    { width: 100%; justify-content: center; }
+
+    /* ===== SLIDERS ===== */
+    .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .slider-row label { min-width: 80px; color: var(--muted); font-size: 12px; }
+    .slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
+    .slider-row .val { min-width: 36px; text-align: right; font-size: 12px; color: var(--muted); }
+
+    /* ===== VU METER ===== */
+    .vu-wrap { display: flex; gap: 6px; align-items: flex-end; height: 80px; }
+    .vu-bar  { width: 24px; background: var(--card); border-radius: 4px 4px 0 0; position: relative; }
+    .vu-fill { position: absolute; bottom: 0; left: 0; right: 0; border-radius: 4px 4px 0 0;
+               transition: height .1s; }
+    .vu-label { font-size: 10px; color: var(--muted); text-align: center; margin-top: 4px; }
+
+    /* ===== EQ ===== */
+    .eq-wrap { display: flex; gap: 4px; align-items: flex-end; height: 60px; }
+    .eq-band { flex: 1; background: var(--card); border-radius: 3px 3px 0 0;
+               transition: height .3s; }
+
+    /* ===== STATUS DOTS ===== */
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-on  { background: var(--online); box-shadow: 0 0 6px var(--online); }
+    .dot-off { background: var(--offline); }
+
+    /* ===== FIXTURE GRID (DMX) ===== */
+    .fixture-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .fixture-item { background: var(--card); border-radius: var(--radius); padding: 10px 14px;
+                    min-width: 100px; cursor: pointer; border: 2px solid transparent;
+                    transition: border-color .15s; }
+    .fixture-item:hover, .fixture-item.sel { border-color: var(--accent); }
+    .fixture-item .fx-name { font-size: 13px; font-weight: 600; }
+    .fixture-item .fx-sub  { font-size: 11px; color: var(--muted); }
+    .fixture-color { width: 100%; height: 8px; border-radius: 4px; margin-top: 8px; }
+
+    /* ===== SCENE GRID ===== */
+    .scene-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+    .scene-btn  { border: none; border-radius: var(--radius); padding: 10px 6px; font-size: 12px;
+                  font-weight: 600; cursor: pointer; color: #fff; transition: filter .15s;
+                  text-align: center; }
+    .scene-btn:hover { filter: brightness(1.2); }
+
+    /* ===== CABINET SVG / WLED ZONES ===== */
+    .cabinet-wrap { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; }
+    .cabinet { position: relative; width: 130px; height: 180px; }
+    .cab-body { width: 100%; height: 100%; border-radius: 10px; background: #222; border: 2px solid #444; }
+    .cab-zone { position: absolute; border-radius: 6px; transition: background .3s; }
+    .cab-left   { left: 4px;  top: 20px; width: 14px; height: 120px; }
+    .cab-right  { right: 4px; top: 20px; width: 14px; height: 120px; }
+    .cab-front  { left: 20px; top: 4px;  width: 90px; height: 14px; }
+    .cab-label  { position: absolute; bottom: -20px; left: 0; right: 0; text-align: center;
+                  font-size: 11px; color: var(--muted); }
+    .cab-logo   { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-55%);
+                  font-size: 20px; opacity: 0.3; }
+
+    /* ===== MAP ===== */
+    #map-canvas { background: #111; border-radius: var(--radius); border: 1px solid var(--border);
+                  width: 100%; height: 320px; position: relative; overflow: hidden; }
+    .map-icon { position: absolute; cursor: grab; user-select: none;
+                background: var(--card); border-radius: var(--radius); padding: 6px 10px;
+                font-size: 12px; border: 1px solid var(--border); transition: box-shadow .15s; }
+    .map-icon:hover { box-shadow: 0 0 8px var(--accent); }
+
+    /* ===== SETTINGS ===== */
+    .settings-row { display: flex; align-items: center; gap: 12px; padding: 10px 0;
+                    border-bottom: 1px solid var(--border); }
+    .settings-row label { flex: 1; color: var(--text); }
+    .settings-row input[type=text], .settings-row select {
+      background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); padding: 6px 10px; min-width: 160px; }
+
+    /* ===== TOGGLE ===== */
+    .toggle { position: relative; width: 40px; height: 22px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #444; border-radius: 22px;
+                     cursor: pointer; transition: background .2s; }
+    .toggle-slider::before { content: ''; position: absolute; width: 16px; height: 16px;
+                              left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+                              transition: transform .2s; }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+    /* ===== CHIP ===== */
+    .chip { display: inline-block; background: var(--card); border-radius: 20px; padding: 4px 12px;
+            font-size: 12px; cursor: pointer; border: 2px solid transparent; margin: 2px;
+            transition: border-color .15s; }
+    .chip.sel { border-color: var(--accent); color: var(--accent); }
+
+    /* ===== COLOR PREVIEW ===== */
+    .color-preview { width: 48px; height: 48px; border-radius: 8px; border: 2px solid var(--border); flex-shrink: 0; }
+
+    /* ===== MISC ===== */
+    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .spacer { flex: 1; }
+    .badge-sm { background: var(--card); border-radius: 12px; padding: 2px 8px; font-size: 11px; }
+    .tag-green { background: rgba(76,175,80,.2); color: var(--online); border-radius: 12px;
+                 padding: 2px 8px; font-size: 11px; }
+    .tag-red   { background: rgba(244,67,54,.2); color: var(--offline); border-radius: 12px;
+                 padding: 2px 8px; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="logo">🎛 DSP Control</span>
+  <span class="sub">Sistema Audio PA Professionale v2.0</span>
+  <span class="badge">● IP: 192.168.4.1</span>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="active" onclick="showTab('audio',this)">🔊 Audio</button>
+  <button onclick="showTab('luci',this)">💡 Luci (DMX)</button>
+  <button onclick="showTab('neon',this)">🌈 Neon (WLED)</button>
+  <button onclick="showTab('mappa',this)">🗺 Mappa</button>
+  <button onclick="showTab('impostazioni',this)">⚙ Impostazioni</button>
+</div>
+
+<!-- ============================== AUDIO TAB ============================== -->
+<div id="tab-audio" class="tab-content active">
+  <div class="grid-2">
+
+    <!-- Volume & Balance -->
+    <div class="card">
+      <h3>Volume & Bilanciamento</h3>
+      <div class="slider-row">
+        <label>Vol. Master</label>
+        <input type="range" id="sl-master" min="0" max="100" value="80" oninput="updateSlider('sl-master','v-master')">
+        <span class="val" id="v-master">80</span>
+      </div>
+      <div class="slider-row">
+        <label>Bilanciamento</label>
+        <input type="range" id="sl-bal" min="-50" max="50" value="0" oninput="updateSlider('sl-bal','v-bal')">
+        <span class="val" id="v-bal">0</span>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-dark btn-sm" onclick="setAudioMode('mixer')">🎚 Mixer</button>
+        <button class="btn btn-dark btn-sm" onclick="setAudioMode('test')">🔬 Test Tone</button>
+      </div>
+    </div>
+
+    <!-- VU Meter -->
+    <div class="card">
+      <h3>VU Meter L/R</h3>
+      <div class="row" style="gap:20px;">
+        <div>
+          <div class="vu-wrap">
+            <div class="vu-bar" style="height:80px;">
+              <div id="vu-l" class="vu-fill" style="height:60%;background:linear-gradient(#4caf50 50%,#ff9800 80%,#f44336)"></div>
+            </div>
+          </div>
+          <div class="vu-label">L</div>
+        </div>
+        <div>
+          <div class="vu-wrap">
+            <div class="vu-bar" style="height:80px;">
+              <div id="vu-r" class="vu-fill" style="height:45%;background:linear-gradient(#4caf50 50%,#ff9800 80%,#f44336)"></div>
+            </div>
+          </div>
+          <div class="vu-label">R</div>
+        </div>
+        <div style="margin-left:8px;">
+          <div style="font-size:24px;font-weight:700;color:var(--accent)" id="peak-db">-6.2</div>
+          <div style="font-size:11px;color:var(--muted)">dBFS peak</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Preset DSP -->
+  <div class="card">
+    <h3>Preset DSP</h3>
+    <div class="row">
+      <select style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;flex:1;">
+        <option>2WAY_STD – 2 vie standard</option>
+        <option>3WAY_FULL – 3 vie completo</option>
+        <option>SUB_CROSS – Solo subwoofer</option>
+        <option>MONITOR – Monitor da palco</option>
+      </select>
+      <button class="btn btn-accent btn-sm">▶ Applica</button>
+      <button class="btn btn-dark btn-sm">💾 Salva</button>
+    </div>
+  </div>
+
+  <!-- EQ Visualization -->
+  <div class="card">
+    <h3>EQ – Spettro FFT (32 bande)</h3>
+    <div class="eq-wrap" id="eq-vis">
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted)">
+      <span>20Hz</span><span>100Hz</span><span>500Hz</span><span>1kHz</span><span>5kHz</span><span>20kHz</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== LUCI (DMX) TAB ============================== -->
+<div id="tab-luci" class="tab-content">
+
+  <div class="row" style="margin-bottom:16px;gap:12px;">
+    <button class="btn btn-red" onclick="dmxBlackout()">⚠ BLACKOUT</button>
+    <button class="btn btn-dark btn-sm" id="ar-btn" onclick="toggleAR()">🎵 Audio-Reactive: OFF</button>
+    <div class="spacer"></div>
+    <div style="font-size:12px;color:var(--muted)">Master Dimmer</div>
+    <input type="range" id="sl-dim" min="0" max="100" value="100" oninput="updateSlider('sl-dim','v-dim')" style="width:140px;accent-color:var(--accent)">
+    <span id="v-dim" style="font-size:12px;color:var(--muted);min-width:36px">100%</span>
+  </div>
+
+  <div class="grid-2">
+    <!-- Fixture list -->
+    <div class="card">
+      <h3>Fixture DMX</h3>
+      <div class="fixture-grid" id="fixture-grid"></div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-green btn-sm">+ Aggiungi Fixture</button>
+        <button class="btn btn-dark btn-sm">🗑 Rimuovi</button>
+      </div>
+    </div>
+
+    <!-- Scene buttons -->
+    <div class="card">
+      <h3>Scene DMX</h3>
+      <div class="scene-grid" id="dmx-scene-grid"></div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-dark btn-sm">⏹ Stop Scena</button>
+        <button class="btn btn-green btn-sm">+ Nuova Scena</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Colore rapido fixture selezionata -->
+  <div class="card">
+    <h3>Colore Fixture Selezionata</h3>
+    <div class="row">
+      <div class="color-preview" id="dmx-color-preview"></div>
+      <div style="flex:1;">
+        <div class="slider-row">
+          <label>R</label>
+          <input type="range" id="sl-r" min="0" max="255" value="200"
+            oninput="updateSlider('sl-r','v-r');updateDmxColor()">
+          <span class="val" id="v-r">200</span>
+        </div>
+        <div class="slider-row">
+          <label>G</label>
+          <input type="range" id="sl-g" min="0" max="255" value="0"
+            oninput="updateSlider('sl-g','v-g');updateDmxColor()">
+          <span class="val" id="v-g">0</span>
+        </div>
+        <div class="slider-row">
+          <label>B</label>
+          <input type="range" id="sl-b" min="0" max="255" value="80"
+            oninput="updateSlider('sl-b','v-b');updateDmxColor()">
+          <span class="val" id="v-b">80</span>
+        </div>
+      </div>
+      <button class="btn btn-accent" onclick="applyDmxColor()">Applica</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== NEON (WLED) TAB ============================== -->
+<div id="tab-neon" class="tab-content">
+
+  <!-- Cabinet mockup -->
+  <div class="card">
+    <h3>Cabinet – Anteprime Zone Neon</h3>
+    <div class="cabinet-wrap" id="cabinet-wrap">
+      <!-- Cabinets created by JS -->
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- Controller list -->
+    <div class="card">
+      <h3>Controller WLED</h3>
+      <div id="wled-ctrl-list"></div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-green btn-sm" onclick="wledDiscover()">📡 Discover</button>
+        <button class="btn btn-blue btn-sm" onclick="wledSync()">🔄 Sync tutti</button>
+        <button class="btn btn-red btn-sm" onclick="wledBlackout()">⚠ BLACKOUT</button>
+      </div>
+    </div>
+
+    <!-- Zone selector -->
+    <div class="card">
+      <h3>Zona attiva</h3>
+      <div id="zone-chips" style="margin-bottom:12px;">
+        <span class="chip sel" onclick="selZone(0,this)">Logo SX</span>
+        <span class="chip" onclick="selZone(1,this)">Logo DX</span>
+        <span class="chip" onclick="selZone(2,this)">Front Frame</span>
+        <span class="chip" onclick="selZone(3,this)">Spare</span>
+      </div>
+      <div class="row">
+        <label class="toggle"><input type="checkbox" id="tog-mirror" onchange="toggleMirror()">
+          <span class="toggle-slider"></span></label>
+        <span style="font-size:13px;">Mirror Logo SX ↔ DX</span>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <label class="toggle"><input type="checkbox" id="tog-sync" onchange="toggleSync()">
+          <span class="toggle-slider"></span></label>
+        <span style="font-size:13px;">Sincronizzazione</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Color & Brightness -->
+  <div class="card">
+    <h3>Colore & Luminosità</h3>
+    <div class="row">
+      <div class="color-preview" id="neon-color-preview" style="background:#ff0080"></div>
+      <div style="flex:1;">
+        <div class="slider-row">
+          <label>R</label>
+          <input type="range" id="sl-nr" min="0" max="255" value="255"
+            oninput="updateSlider('sl-nr','v-nr');updateNeonColor()">
+          <span class="val" id="v-nr">255</span>
+        </div>
+        <div class="slider-row">
+          <label>G</label>
+          <input type="range" id="sl-ng" min="0" max="255" value="0"
+            oninput="updateSlider('sl-ng','v-ng');updateNeonColor()">
+          <span class="val" id="v-ng">0</span>
+        </div>
+        <div class="slider-row">
+          <label>B</label>
+          <input type="range" id="sl-nb" min="0" max="255" value="128"
+            oninput="updateSlider('sl-nb','v-nb');updateNeonColor()">
+          <span class="val" id="v-nb">128</span>
+        </div>
+        <div class="slider-row">
+          <label>Luminosità</label>
+          <input type="range" id="sl-nbri" min="0" max="255" value="200"
+            oninput="updateSlider('sl-nbri','v-nbri');updateNeonColor()">
+          <span class="val" id="v-nbri">200</span>
+        </div>
+      </div>
+      <button class="btn btn-accent" onclick="applyNeonColor()">Applica Colore</button>
+    </div>
+  </div>
+
+  <!-- Effect selector -->
+  <div class="card">
+    <h3>Effetto WLED</h3>
+    <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <button class="btn btn-dark btn-sm" onclick="setEffect(0)">Solid</button>
+      <button class="btn btn-dark btn-sm" onclick="setEffect(9)">Rainbow</button>
+      <button class="btn btn-dark btn-sm" onclick="setEffect(2)">Breathe</button>
+      <button class="btn btn-dark btn-sm" onclick="setEffect(66)">Fire 2012</button>
+      <button class="btn btn-dark btn-sm" onclick="setEffect(55)">Lightning</button>
+      <button class="btn btn-dark btn-sm" onclick="setEffect(42)">Fireworks</button>
+      <button class="btn btn-dark btn-sm" onclick="setEffect(17)">Twinkle</button>
+      <button class="btn btn-dark btn-sm" onclick="setEffect(14)">Theater</button>
+    </div>
+    <div class="slider-row">
+      <label>Velocità</label>
+      <input type="range" id="sl-nsp" min="0" max="255" value="128"
+        oninput="updateSlider('sl-nsp','v-nsp')">
+      <span class="val" id="v-nsp">128</span>
+    </div>
+    <div class="slider-row">
+      <label>Intensità</label>
+      <input type="range" id="sl-nix" min="0" max="255" value="128"
+        oninput="updateSlider('sl-nix','v-nix')">
+      <span class="val" id="v-nix">128</span>
+    </div>
+    <button class="btn btn-blue" onclick="applyNeonEffect()">⚡ Applica Effetto</button>
+  </div>
+
+  <!-- Scene grid WLED -->
+  <div class="card">
+    <h3>Scene Neon</h3>
+    <div class="scene-grid" id="neon-scene-grid"></div>
+    <div class="row" style="margin-top:12px;">
+      <button class="btn btn-green btn-sm">+ Nuova Scena</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================== MAPPA TAB ============================== -->
+<div id="tab-mappa" class="tab-content">
+  <div class="card">
+    <h3>Mappa Venue 2D – Drag & Drop</h3>
+    <div class="row" style="margin-bottom:12px;gap:8px;">
+      <button class="btn btn-dark btn-sm">+ Cassa</button>
+      <button class="btn btn-dark btn-sm">+ Sub</button>
+      <button class="btn btn-dark btn-sm">+ Monitor</button>
+      <button class="btn btn-dark btn-sm">+ Fixture DMX</button>
+      <div class="spacer"></div>
+      <button class="btn btn-accent btn-sm">📐 Calcola Delay</button>
+    </div>
+    <div id="map-canvas">
+      <div class="map-icon" style="left:40px;top:40px;" draggable="true">🔊 SX</div>
+      <div class="map-icon" style="left:400px;top:40px;" draggable="true">🔊 DX</div>
+      <div class="map-icon" style="left:200px;top:200px;" draggable="true">🔊 Sub</div>
+      <div class="map-icon" style="left:200px;top:100px;" draggable="true">👤 Listener</div>
+      <div class="map-icon" style="left:60px;top:200px;" draggable="true">💡 PAR SX</div>
+      <div class="map-icon" style="left:380px;top:200px;" draggable="true">💡 PAR DX</div>
+    </div>
+  </div>
+  <div class="card" id="delay-results">
+    <h3>Risultati Calcolo Delay</h3>
+    <div class="row" style="gap:16px;">
+      <div class="badge-sm">SX: +0.0ms</div>
+      <div class="badge-sm">DX: +2.1ms</div>
+      <div class="badge-sm">Sub: +5.4ms</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== IMPOSTAZIONI TAB ============================== -->
+<div id="tab-impostazioni" class="tab-content">
+  <div class="grid-2">
+    <div class="card">
+      <h3>Connessione WiFi</h3>
+      <div class="settings-row">
+        <label>SSID Access Point</label>
+        <input type="text" value="SISTEMA_AUDIO_01">
+      </div>
+      <div class="settings-row">
+        <label>Password AP</label>
+        <input type="text" value="audio1234">
+      </div>
+      <div class="settings-row">
+        <label>IP ESP32</label>
+        <input type="text" value="192.168.4.1">
+      </div>
+      <div style="margin-top:12px;">
+        <button class="btn btn-accent btn-sm">💾 Salva Configurazione</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Modalità</h3>
+      <div class="settings-row">
+        <label>Modalità</label>
+        <div class="row">
+          <label class="toggle">
+            <input type="checkbox" id="tog-expert" onchange="toggleExpert()">
+            <span class="toggle-slider"></span>
+          </label>
+          <span id="mode-label" style="font-size:13px;">Base</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label>Password Expert</label>
+        <input type="text" value="****" id="exp-pass" disabled>
+      </div>
+      <div class="settings-row">
+        <label>Firmware</label>
+        <span class="badge-sm">v2.0.0</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card">
+    <h3>Import / Export</h3>
+    <div class="row" style="gap:8px;">
+      <button class="btn btn-dark btn-sm">📤 Esporta Config</button>
+      <button class="btn btn-dark btn-sm">📥 Importa Config</button>
+      <button class="btn btn-dark btn-sm">📤 Esporta Preset</button>
+      <button class="btn btn-dark btn-sm">📤 Esporta Scene</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Informazioni Sistema</h3>
+    <div class="row" style="gap:16px;">
+      <div class="badge-sm">Heap libero: 142 kB</div>
+      <div class="badge-sm">Uptime: 01:23:45</div>
+      <div class="badge-sm">DSP: <span class="tag-green">Connesso</span></div>
+      <div class="badge-sm">USB: <span class="tag-red">Assente</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== JS ============================== -->
+<script>
+// ===== Tab switching =====
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ===== Slider value display =====
+function updateSlider(sliderId, labelId) {
+  const v = document.getElementById(sliderId).value;
+  document.getElementById(labelId).textContent = v;
+}
+
+// ===== EQ visualization =====
+const eqBands = Array.from({length: 32}, () => Math.random() * 50 + 5);
+function renderEq() {
+  const wrap = document.getElementById('eq-vis');
+  wrap.innerHTML = '';
+  eqBands.forEach(h => {
+    const d = document.createElement('div');
+    d.className = 'eq-band';
+    d.style.height = h + 'px';
+    d.style.background = `hsl(${200 + h*1.2},80%,55%)`;
+    wrap.appendChild(d);
+  });
+}
+renderEq();
+
+// ===== VU meter animation =====
+let vuPhase = 0;
+function animVU() {
+  vuPhase += 0.05;
+  const l = (55 + Math.sin(vuPhase) * 30 + Math.random() * 8).toFixed(0);
+  const r = (50 + Math.sin(vuPhase + 0.7) * 28 + Math.random() * 8).toFixed(0);
+  document.getElementById('vu-l').style.height = l + '%';
+  document.getElementById('vu-r').style.height = r + '%';
+  const db = (-60 + Math.max(+l, +r) * 0.6).toFixed(1);
+  document.getElementById('peak-db').textContent = db;
+  // animate EQ too
+  eqBands.forEach((v, i) => {
+    eqBands[i] = Math.max(2, Math.min(58, v + (Math.random() - 0.5) * 8));
+  });
+  renderEq();
+  requestAnimationFrame(animVU);
+}
+animVU();
+
+// ===== Audio mode =====
+function setAudioMode(mode) { log('Audio mode → ' + mode); }
+
+// ===== DMX =====
+const dmxFixtures = [
+  { name:'PAR SX-1', type:'PAR_RGB', color:'#aa0000' },
+  { name:'PAR SX-2', type:'PAR_RGB', color:'#880088' },
+  { name:'PAR DX-1', type:'PAR_RGB', color:'#0000cc' },
+  { name:'PAR DX-2', type:'PAR_RGB', color:'#006600' },
+  { name:'Moving SX', type:'MOVING_HEAD', color:'#cc8800' },
+  { name:'Moving DX', type:'MOVING_HEAD', color:'#00aaaa' },
+];
+const dmxScenes = [
+  { name:'Rosso', color:'#cc2200' },
+  { name:'Blu', color:'#0044cc' },
+  { name:'Rainbow', color:'#9944ff' },
+  { name:'Strobo', color:'#888888' },
+  { name:'Chase', color:'#cc6600' },
+  { name:'Audio FX', color:'#004488' },
+];
+
+function renderDmx() {
+  const fg = document.getElementById('fixture-grid');
+  fg.innerHTML = '';
+  dmxFixtures.forEach((f, i) => {
+    const d = document.createElement('div');
+    d.className = 'fixture-item' + (i === 0 ? ' sel' : '');
+    d.innerHTML = `<div class="fx-name">${f.name}</div>
+                   <div class="fx-sub">${f.type}</div>
+                   <div class="fixture-color" style="background:${f.color}"></div>`;
+    d.onclick = () => {
+      document.querySelectorAll('.fixture-item').forEach(x => x.classList.remove('sel'));
+      d.classList.add('sel');
+    };
+    fg.appendChild(d);
+  });
+
+  const sg = document.getElementById('dmx-scene-grid');
+  sg.innerHTML = '';
+  dmxScenes.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'scene-btn';
+    b.style.background = s.color;
+    b.textContent = s.name;
+    b.onclick = () => log('DMX scene: ' + s.name);
+    sg.appendChild(b);
+  });
+
+  updateDmxColor();
+}
+renderDmx();
+
+function updateDmxColor() {
+  const r = document.getElementById('sl-r').value;
+  const g = document.getElementById('sl-g').value;
+  const b = document.getElementById('sl-b').value;
+  document.getElementById('dmx-color-preview').style.background =
+    `rgb(${r},${g},${b})`;
+}
+function applyDmxColor()  { log('DMX color applied'); }
+function dmxBlackout()    { log('DMX BLACKOUT'); alert('DMX BLACKOUT attivato!'); }
+
+let arOn = false;
+function toggleAR() {
+  arOn = !arOn;
+  document.getElementById('ar-btn').textContent =
+    '🎵 Audio-Reactive: ' + (arOn ? 'ON' : 'OFF');
+}
+
+// ===== WLED Controllers (mock) =====
+const wledControllers = [
+  { name:'Cabinet_SX', ip:'192.168.4.10', channels:4, online:true  },
+  { name:'Cabinet_DX', ip:'192.168.4.11', channels:4, online:true  },
+  { name:'Cabinet_FR', ip:'192.168.4.12', channels:2, online:false },
+];
+const neonScenes = [
+  { name:'Rosso',    color:'#cc0000' },
+  { name:'Viola',    color:'#8800cc' },
+  { name:'Azzurro',  color:'#0066cc' },
+  { name:'Bianco',   color:'#888888' },
+  { name:'Rainbow',  color:'#9944ff' },
+  { name:'Fire',     color:'#cc4400' },
+  { name:'Breathe',  color:'#006644' },
+  { name:'Twinkle',  color:'#004488' },
+];
+const zoneNames = ['Logo SX', 'Logo DX', 'Front Frame', 'Spare'];
+let selZoneIdx = 0;
+let neonColor = { r:255, g:0, b:128 };
+
+function renderWled() {
+  // Controllers
+  const cl = document.getElementById('wled-ctrl-list');
+  cl.innerHTML = '';
+  wledControllers.forEach((c, i) => {
+    cl.innerHTML += `
+      <div class="row" style="margin-bottom:8px;">
+        <span class="dot ${c.online ? 'dot-on' : 'dot-off'}"></span>
+        <span style="flex:1;font-size:13px;">${c.name} <span style="color:var(--muted);font-size:11px;">${c.ip} ${c.channels}CH</span></span>
+        <span class="${c.online ? 'tag-green' : 'tag-red'}">${c.online ? 'Online' : 'Offline'}</span>
+      </div>`;
+  });
+
+  // Scene grid
+  const sg = document.getElementById('neon-scene-grid');
+  sg.innerHTML = '';
+  neonScenes.forEach((s, idx) => {
+    const b = document.createElement('button');
+    b.className = 'scene-btn';
+    b.style.background = s.color;
+    b.textContent = s.name;
+    b.onclick = () => { applyNeonScene(idx); };
+    sg.appendChild(b);
+  });
+
+  // Cabinet mockups
+  const wrap = document.getElementById('cabinet-wrap');
+  wrap.innerHTML = '';
+  wledControllers.forEach(c => {
+    wrap.innerHTML += `
+      <div style="text-align:center;">
+        <div class="cabinet">
+          <div class="cab-body"></div>
+          <div class="cab-zone cab-left"  id="zone-l-${c.name}" style="background:${neonColor2css(neonColor)}"></div>
+          <div class="cab-zone cab-right" id="zone-r-${c.name}" style="background:${neonColor2css(neonColor)}"></div>
+          <div class="cab-zone cab-front" id="zone-f-${c.name}" style="background:${neonColor2css(neonColor)}"></div>
+          <div class="cab-logo">🔊</div>
+          <div class="cab-label">${c.name}</div>
+        </div>
+        <div style="margin-top:24px;font-size:11px;color:var(--muted)">${c.ip}</div>
+      </div>`;
+  });
+}
+renderWled();
+
+function neonColor2css(c) {
+  return `rgba(${c.r},${c.g},${c.b},0.85)`;
+}
+
+function selZone(idx, el) {
+  selZoneIdx = idx;
+  document.querySelectorAll('#zone-chips .chip').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  log('Zona selezionata: ' + zoneNames[idx]);
+}
+
+function updateNeonColor() {
+  neonColor.r = +document.getElementById('sl-nr').value;
+  neonColor.g = +document.getElementById('sl-ng').value;
+  neonColor.b = +document.getElementById('sl-nb').value;
+  document.getElementById('neon-color-preview').style.background =
+    `rgb(${neonColor.r},${neonColor.g},${neonColor.b})`;
+  // update cabinet zones live
+  document.querySelectorAll('.cab-zone').forEach(z => {
+    z.style.background = neonColor2css(neonColor);
+  });
+}
+
+function applyNeonColor()  { log('WLED color applied to zone ' + selZoneIdx); }
+function applyNeonEffect() { log('WLED effect applied'); }
+function applyNeonScene(i) { log('WLED scene: ' + neonScenes[i].name); }
+function wledBlackout()    { log('WLED BLACKOUT'); alert('WLED BLACKOUT attivato!');
+  document.querySelectorAll('.cab-zone').forEach(z => z.style.background = '#111'); }
+function wledSync()        { log('WLED SYNC all'); }
+function wledDiscover()    { log('WLED DISCOVER started'); }
+function toggleMirror()    { log('Mirror toggle'); }
+function toggleSync()      { log('Sync toggle'); }
+function setEffect(id)     { log('Effect: ' + id); }
+
+// ===== Settings =====
+function toggleExpert() {
+  const on = document.getElementById('tog-expert').checked;
+  document.getElementById('mode-label').textContent = on ? 'Expert' : 'Base';
+  document.getElementById('exp-pass').disabled = !on;
+}
+
+// ===== Map drag-and-drop =====
+let dragEl = null, ox = 0, oy = 0;
+document.querySelectorAll('.map-icon').forEach(el => {
+  el.addEventListener('mousedown', e => {
+    dragEl = el;
+    ox = e.clientX - el.offsetLeft;
+    oy = e.clientY - el.offsetTop;
+    e.preventDefault();
+  });
+});
+document.addEventListener('mousemove', e => {
+  if (dragEl) {
+    const canvas = document.getElementById('map-canvas');
+    const cr = canvas.getBoundingClientRect();
+    dragEl.style.left = Math.max(0, e.clientX - cr.left - ox) + 'px';
+    dragEl.style.top  = Math.max(0, e.clientY - cr.top  - oy) + 'px';
+  }
+});
+document.addEventListener('mouseup', () => { dragEl = null; });
+
+// ===== Log helper =====
+function log(msg) { console.log('[DSP Preview]', msg); }
+</script>
+</body>
+</html>
