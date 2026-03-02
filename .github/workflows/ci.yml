@@ -1,0 +1,91 @@
+name: CI Tests
+
+on:
+  push:
+    branches: [main, "copilot/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ——— Test firmware native (Unity, nessun hardware) ———
+  test-firmware:
+    name: Firmware Unit Tests (native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build and test (native env)
+        working-directory: firmware/esp32
+        run: |
+          if grep -q "\[env:native\]" platformio.ini; then
+            pio test -e native --without-uploading
+          else
+            echo "No native env configured, skipping firmware tests"
+          fi
+
+  # ——— Build firmware ESP32-S3 (verifica compilazione) ———
+  build-firmware:
+    name: Firmware Build (ESP32-S3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware (ESP32-S3)
+        working-directory: firmware/esp32
+        run: pio run -e esp32s3
+
+  # ——— Build firmware Modulo RX ———
+  build-modulo-rx:
+    name: Modulo RX Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build modulo_rx
+        working-directory: modulo_rx
+        run: pio run -e esp32s3
+
+  # ——— Test Flutter ———
+  test-flutter:
+    name: Flutter Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+
+      - name: Install dependencies
+        working-directory: app/flutter
+        run: flutter pub get
+
+      - name: Run Flutter tests
+        working-directory: app/flutter
+        run: flutter test --reporter expanded

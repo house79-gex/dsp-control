@@ -527,3 +527,55 @@ std::vector<DmxScene*> dmx_get_all_scenes() {
 const uint8_t* dmx_get_buffer() {
     return s_dmxBuffer;
 }
+
+// ======= Fixture di fabbrica predefinite =======
+
+void dmx_load_factory_fixtures() {
+    // Generic RGB PAR (3CH) – address 1 e 4
+    DmxFixture parL = {};
+    parL.id = 1; parL.startAddress = 1; parL.numChannels = 3;
+    strncpy(parL.name, "PAR Front L", sizeof(parL.name) - 1);
+    strncpy(parL.type, DMX_TYPE_PAR_RGB, sizeof(parL.type) - 1);
+    parL.online = true;
+    dmx_add_fixture(parL);
+
+    DmxFixture parR = {};
+    parR.id = 2; parR.startAddress = 4; parR.numChannels = 3;
+    strncpy(parR.name, "PAR Front R", sizeof(parR.name) - 1);
+    strncpy(parR.type, DMX_TYPE_PAR_RGB, sizeof(parR.type) - 1);
+    parR.online = true;
+    dmx_add_fixture(parR);
+
+    // Moving Head (12CH) – address 10
+    DmxFixture mh = {};
+    mh.id = 3; mh.startAddress = 10; mh.numChannels = 12;
+    strncpy(mh.name, "MH Center", sizeof(mh.name) - 1);
+    strncpy(mh.type, DMX_TYPE_MOVING_HEAD, sizeof(mh.type) - 1);
+    mh.online = true;
+    dmx_add_fixture(mh);
+
+    // LED Wash (7CH) – address 25 e 32
+    DmxFixture washL = {};
+    washL.id = 4; washL.startAddress = 25; washL.numChannels = 7;
+    strncpy(washL.name, "WASH Back L", sizeof(washL.name) - 1);
+    strncpy(washL.type, DMX_TYPE_WASH, sizeof(washL.type) - 1);
+    washL.online = true;
+    dmx_add_fixture(washL);
+
+    DmxFixture washR = {};
+    washR.id = 5; washR.startAddress = 32; washR.numChannels = 7;
+    strncpy(washR.name, "WASH Back R", sizeof(washR.name) - 1);
+    strncpy(washR.type, DMX_TYPE_WASH, sizeof(washR.type) - 1);
+    washR.online = true;
+    dmx_add_fixture(washR);
+
+    // Strobe (1CH) – address 50
+    DmxFixture strobe = {};
+    strobe.id = 6; strobe.startAddress = 50; strobe.numChannels = 1;
+    strncpy(strobe.name, "STROBE Main", sizeof(strobe.name) - 1);
+    strncpy(strobe.type, DMX_TYPE_STROBE, sizeof(strobe.type) - 1);
+    strobe.online = true;
+    dmx_add_fixture(strobe);
+
+    Serial.println("[DMX] 6 fixture di fabbrica caricate");
+}

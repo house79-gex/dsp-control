@@ -66,13 +66,24 @@ void ES8388::setSampleRate(uint32_t sampleRate) {
     // Bit [0]   = 0   → slave mode (MCLK, BCLK, LRCK ricevuti dall'esterno)
     writeReg(0x08, 0x00);
 
-    // ADC oversampling speed: single-speed per ≤48 kHz, double-speed per >48 kHz
-    // Registro 0x0D (ADCCONTROL5), bit[3]: 0=single-speed, 1=double-speed
+    // ADCCONTROL5 (0x0D): ADC oversampling speed
+    // Bit[3]: 0 = single-speed (≤48 kHz), 1 = double-speed (>48 kHz)
+    // Bit[2:0]: ADC LR Clock divider ratio (000 = 256/Fs, default)
     uint8_t adcCtl5 = readReg(0x0D);
     uint8_t speedBit = (sampleRate > 48000) ? (1 << 3) : 0;
     writeReg(0x0D, (adcCtl5 & ~(1 << 3)) | speedBit);
 
-    Serial.printf("[ES8388] Sample rate: %u Hz (slave, MCLK=256fs)\n", sampleRate);
+    // DACCONTROL2 (0x19): DAC oversampling speed
+    // Bit[3]: 0 = single-speed (≤48 kHz), 1 = double-speed (>48 kHz)
+    uint8_t dacCtl2 = readReg(0x19);
+    writeReg(0x19, (dacCtl2 & ~(1 << 3)) | speedBit);
+
+    // Per 44.1 kHz: ESP32 deve generare MCLK = 11.2896 MHz (256 × 44100)
+    // Per 48 kHz:   ESP32 deve generare MCLK = 12.288 MHz  (256 × 48000)
+    // ADCCONTROL4 (0x0C): ADC Left/Right polarity e input select (non modificato qui)
+    // Registro 0x06 (CHIPPOWER2 / LOUT2VOL in alcune versioni): già configurato in begin()
+    Serial.printf("[ES8388] Sample rate: %u Hz (slave, MCLK=256fs, MCLK=%.4f MHz)\n",
+                  sampleRate, (sampleRate * 256) / 1000000.0f);
 }
 
 void ES8388::startCapture() {
@@ -118,21 +129,28 @@ size_t ES8388::readSamples(int32_t* buffer, size_t count, TickType_t timeout) {
 }
 
 void ES8388::setBitsPerSample(uint8_t bits) {
-    // ES8388 registro 0x17 (SDP_IN) e 0x18 (SDP_OUT): word length
-    // 00 = 24-bit, 01 = 20-bit, 10 = 18-bit, 11 = 16-bit
+    // ES8388 SDP register bit format (0x17 ADCCONTROL3, 0x18 DACCONTROL1):
+    // Bit 7:   DAT_LRP
+    // Bit 6:   LRP (LRC polarity)
+    // Bits 5:4 WL[1:0] word length: 00=24bit, 01=20bit, 10=18bit, 11=16bit
+    // Bits 3:2 FMT[1:0] format:     00=I2S, 01=left-justified, 10=right, 11=DSP
+    // Bit 1:   reserved
+    // Bit 0:   input/output select
     uint8_t wl;
     switch (bits) {
+        case 32: wl = 0b00; break;  // 32-bit treated as 24-bit (ES8388 max=24)
         case 24: wl = 0b00; break;
         case 20: wl = 0b01; break;
         case 18: wl = 0b10; break;
         default: wl = 0b11; break;  // 16-bit
     }
-    // Aggiorna word length in SDP_IN (reg 0x17) bits [1:0]
+    // Word length is in bits [5:4]; preserve other bits
     uint8_t sdpIn  = readReg(0x17);
     uint8_t sdpOut = readReg(0x18);
-    writeReg(0x17, (sdpIn  & 0xFC) | wl);
-    writeReg(0x18, (sdpOut & 0xFC) | wl);
-    Serial.printf("[ES8388] Bit depth impostato a %d bit (wl=0x%02X)\n", bits, wl);
+    writeReg(0x17, (sdpIn  & 0xCF) | (wl << 4));
+    writeReg(0x18, (sdpOut & 0xCF) | (wl << 4));
+    Serial.printf("[ES8388] Bit depth impostato a %d bit (wl=0x%02X, reg17=0x%02X reg18=0x%02X)\n",
+                  bits, wl, readReg(0x17), readReg(0x18));
 }
 
 void ES8388::setVolume(uint8_t volume) {

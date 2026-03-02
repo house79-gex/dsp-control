@@ -139,6 +139,18 @@ void setup() {
     // Inizializzazione DMX512
     dmx_init();
 
+    // Carica fixture DMX da NVS; se nessuna presente carica quelle di fabbrica
+    {
+        std::vector<DmxFixture> savedFixtures = storage_load_dmx_fixtures();
+        if (savedFixtures.empty()) {
+            Serial.println("[MAIN] Nessuna fixture DMX salvata → carico fixture di fabbrica");
+            dmx_load_factory_fixtures();
+        } else {
+            for (const auto& fx : savedFixtures) dmx_add_fixture(fx);
+            Serial.printf("[MAIN] %d fixture DMX caricate da NVS\n", (int)savedFixtures.size());
+        }
+    }
+
     // Inizializzazione audio-reactive
     audio_reactive_init();
 

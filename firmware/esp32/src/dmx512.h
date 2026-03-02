@@ -118,3 +118,6 @@ const uint8_t* dmx_get_buffer();
 
 // Task FreeRTOS per output DMX (da chiamare con xTaskCreate)
 void dmx_task(void* param);
+
+// Carica fixture di fabbrica predefinite (solo se nessuna fixture è presente)
+void dmx_load_factory_fixtures();
