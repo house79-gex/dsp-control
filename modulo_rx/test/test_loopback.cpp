@@ -26,7 +26,8 @@
 #define TEST_DURATION_MS   500     // durata generazione tono
 #define TEST_DELAY_MS      100     // ritardo acustico (propagazione + processing)
 #define FFT_SIZE           1024
-#define THD_N_THRESHOLD    0.01f   // 1% (più rilassato per loopback acustico)
+// THD_N_THRESHOLD: soglia massima accettabile (0.01f = 1%)
+#define THD_N_THRESHOLD    0.01f
 
 static float s_sineBuffer[FFT_SIZE];
 static float s_captureBuffer[FFT_SIZE];

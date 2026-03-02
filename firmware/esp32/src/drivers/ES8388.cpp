@@ -78,11 +78,7 @@ void ES8388::setSampleRate(uint32_t sampleRate) {
     uint8_t dacCtl2 = readReg(0x19);
     writeReg(0x19, (dacCtl2 & ~(1 << 3)) | speedBit);
 
-    // Per 44.1 kHz: ESP32 deve generare MCLK = 11.2896 MHz (256 × 44100)
-    // Per 48 kHz:   ESP32 deve generare MCLK = 12.288 MHz  (256 × 48000)
-    // ADCCONTROL4 (0x0C): ADC Left/Right polarity e input select (non modificato qui)
-    // Registro 0x06 (CHIPPOWER2 / LOUT2VOL in alcune versioni): già configurato in begin()
-    Serial.printf("[ES8388] Sample rate: %u Hz (slave, MCLK=256fs, MCLK=%.4f MHz)\n",
+    Serial.printf("[ES8388] Sample rate: %u Hz (slave, MCLK=%.4f MHz)\n",
                   sampleRate, (sampleRate * 256) / 1000000.0f);
 }
 
@@ -138,7 +134,7 @@ void ES8388::setBitsPerSample(uint8_t bits) {
     // Bit 0:   input/output select
     uint8_t wl;
     switch (bits) {
-        case 32: wl = 0b00; break;  // 32-bit treated as 24-bit (ES8388 max=24)
+        case 32: wl = 0b00; break;  // 32-bit: uso 24-bit (ES8388 max supportato = 24 bit)
         case 24: wl = 0b00; break;
         case 20: wl = 0b01; break;
         case 18: wl = 0b10; break;
