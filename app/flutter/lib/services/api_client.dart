@@ -176,6 +176,12 @@ class ApiClient {
   Future<Map<String, dynamic>> getAudioSpectrum() =>
       _get('/api/audio/spectrum');
 
+  // ——— Input Gain ADC (ES8388) ———
+  Future<Map<String, dynamic>> getInputGain() => _get('/api/audio/input-gain');
+
+  Future<void> setInputGain(double gainDb) =>
+      _post('/api/audio/input-gain', {'gain': gainDb});
+
   // ——— Venue map ———
   Future<Map<String, dynamic>> getVenueMap() => _get('/api/venue/map');
 

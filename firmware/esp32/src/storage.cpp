@@ -495,3 +495,31 @@ void storage_load_wled_scenes() {
     }
     Serial.printf("[STORAGE] Caricate scene WLED da NVS\n");
 }
+
+// ======= Persistenza Configurazione Audio =======
+
+bool storage_save_audio_config(float inputGainDb, uint32_t sampleRate, uint8_t bitDepth) {
+    AudioConfig cfg = { inputGainDb, sampleRate, bitDepth };
+    size_t written = s_prefs.putBytes("audio_cfg", &cfg, sizeof(AudioConfig));
+    if (written != sizeof(AudioConfig)) {
+        Serial.println("[STORAGE] Errore salvataggio audio config");
+        return false;
+    }
+    Serial.printf("[STORAGE] Audio config salvata: gain=%.1f dB, rate=%u Hz, depth=%u bit\n",
+                  inputGainDb, sampleRate, bitDepth);
+    return true;
+}
+
+bool storage_load_audio_config(float* inputGainDb, uint32_t* sampleRate, uint8_t* bitDepth) {
+    AudioConfig cfg = {};
+    size_t size = s_prefs.getBytes("audio_cfg", &cfg, sizeof(AudioConfig));
+    if (size != sizeof(AudioConfig)) {
+        return false;
+    }
+    *inputGainDb = cfg.inputGainDb;
+    *sampleRate  = cfg.sampleRate;
+    *bitDepth    = cfg.bitDepth;
+    Serial.printf("[STORAGE] Audio config caricata: gain=%.1f dB, rate=%u Hz, depth=%u bit\n",
+                  cfg.inputGainDb, cfg.sampleRate, cfg.bitDepth);
+    return true;
+}

@@ -888,6 +888,39 @@ void web_server_init() {
         req->send(404, "text/plain", "Not found");
     });
 
+    // ——— Input Gain ADC (ES8388) ———
+
+    s_server.on("/api/audio/input-gain", HTTP_GET, [](AsyncWebServerRequest* req) {
+        float gainDb = audio_get_input_gain();
+        char json[128];
+        snprintf(json, sizeof(json),
+                 "{\"success\":true,\"inputGainDb\":%.1f,\"sampleRate\":%d,\"bitDepth\":%d}",
+                 gainDb, AUDIO_SAMPLE_RATE, AUDIO_BIT_DEPTH);
+        req->send(200, "application/json", json);
+    });
+
+    s_server.on("/api/audio/input-gain", HTTP_POST, [](AsyncWebServerRequest* req) {},
+        nullptr,
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+            StaticJsonDocument<256> doc;
+            DeserializationError error = deserializeJson(doc, data, len);
+            if (error) {
+                req->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid JSON\"}");
+                return;
+            }
+            if (!doc.containsKey("gain")) {
+                req->send(400, "application/json", "{\"success\":false,\"error\":\"Missing gain parameter\"}");
+                return;
+            }
+            float gainDb = constrain(doc["gain"].as<float>(), -96.0f, 24.0f);
+            audio_set_input_gain(gainDb);
+            storage_save_audio_config(gainDb, AUDIO_SAMPLE_RATE, AUDIO_BIT_DEPTH);
+            char json[128];
+            snprintf(json, sizeof(json),
+                     "{\"success\":true,\"inputGainDb\":%.1f}", gainDb);
+            req->send(200, "application/json", json);
+        });
+
     // ——— Audio levels ———
     s_server.on("/api/audio/levels", HTTP_GET, [](AsyncWebServerRequest* req) {
         float left, right;

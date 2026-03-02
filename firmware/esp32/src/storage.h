@@ -52,3 +52,12 @@ void storage_save_wled_controllers();
 void storage_load_wled_controllers();
 void storage_save_wled_scenes();
 void storage_load_wled_scenes();
+
+// Configurazione audio (sample rate, bit depth, input gain ADC)
+struct AudioConfig {
+    float    inputGainDb;  // Guadagno ADC ES8388 (-96..+24 dB)
+    uint32_t sampleRate;   // Hz (es. 44100)
+    uint8_t  bitDepth;     // bit (es. 24)
+};
+bool storage_save_audio_config(float inputGainDb, uint32_t sampleRate, uint8_t bitDepth);
+bool storage_load_audio_config(float* inputGainDb, uint32_t* sampleRate, uint8_t* bitDepth);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
+import 'audio_settings_screen.dart';
 
 // ======= Schermata Impostazioni =======
 
@@ -84,6 +85,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 12),
                 _buildConnectionCard(),
                 const SizedBox(height: 12),
+                _buildAudioSettingsCard(),
+                const SizedBox(height: 12),
                 _buildModeCard(),
                 const SizedBox(height: 12),
                 _buildUsbCard(),
@@ -145,6 +148,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      );
+
+  Widget _buildAudioSettingsCard() => Card(
+        color: const Color(0xFF16213e),
+        child: ListTile(
+          leading: const Icon(Icons.music_note, color: Color(0xFFe94560)),
+          title: const Text('🎛️ Audio Settings',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          subtitle: Text('Input gain, sample rate, bit depth',
+              style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AudioSettingsScreen(api: widget.api),
+            ),
           ),
         ),
       );

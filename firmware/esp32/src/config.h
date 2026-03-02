@@ -51,3 +51,15 @@
 #define ENCODER_BAL_A       47  // TODO: verificare GPIO encoder balance A
 #define ENCODER_BAL_B       46  // TODO: verificare GPIO encoder balance B
 // NOTA: GPIO 48 è usato da LED_STATUS, usare GPIO 46 per ENCODER_BAL_B
+
+// ======= CONFIGURAZIONE AUDIO =======
+// Ottimizzato per sorgente Denon DJ SC LIVE 4 (output +18 dBu, 44.1 kHz nativo)
+#define AUDIO_SAMPLE_RATE                 44100  // Hz – match SC LIVE 4 nativo
+#define AUDIO_BIT_DEPTH                   24     // bit – ES8388 supporta 24-bit
+#define AUDIO_CHANNELS                    2      // Stereo
+
+// Frame audio wireless: 44100 Hz / 1000 frame/sec ≈ 44 campioni per frame
+#define WIRELESS_AUDIO_SAMPLES_PER_FRAME  44
+
+// ES8388 codec I2C address (default: 0x10 per CSADDR=0, 0x11 per CSADDR=1)
+#define ES8388_I2C_ADDR                   0x10
