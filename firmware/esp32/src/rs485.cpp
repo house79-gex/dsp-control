@@ -10,6 +10,11 @@
 #define CMD_PING        0x01
 #define CMD_BEEP        0x02
 #define CMD_PONG        0x81
+#define CMD_DEVICE_INFO 0x60  // Richiesta informazioni dispositivo
+
+// Frame header RS-485
+#define FRAME_HEADER_0  0xFF
+#define FRAME_HEADER_1  0x55
 
 // ======= Funzioni interne DE/RE =======
 
@@ -24,6 +29,72 @@ static void rs485_rx_mode() {
     digitalWrite(RS485_DE, LOW);
     digitalWrite(RS485_RE, LOW);
     delayMicroseconds(10);
+}
+
+// Calcola XOR checksum dei primi len byte del frame
+static uint8_t calculate_checksum(const uint8_t* frame, size_t len) {
+    uint8_t cs = 0;
+    for (size_t i = 0; i < len; i++) cs ^= frame[i];
+    return cs;
+}
+
+// Invia un frame RS-485 (include checksum come ultimo byte)
+static void rs485_send_frame(const uint8_t* frame, size_t len) {
+    rs485_tx_mode();
+    RS485_UART.write(frame, len);
+    RS485_UART.flush();
+    rs485_rx_mode();
+}
+
+// Attende e riceve un frame RS-485 con header 0xFF 0x55
+// Restituisce true se un frame valido è stato ricevuto
+static bool rs485_receive_frame(uint8_t* buf, size_t* outLen, uint32_t timeoutMs) {
+    uint32_t start = millis();
+    size_t pos = 0;
+    bool gotHeader = false;
+
+    while ((millis() - start) < timeoutMs) {
+        if (!RS485_UART.available()) {
+            yield();
+            continue;
+        }
+        uint8_t b = (uint8_t)RS485_UART.read();
+        if (!gotHeader) {
+            if (pos == 0 && b == FRAME_HEADER_0) {
+                buf[pos++] = b;
+            } else if (pos == 1 && b == FRAME_HEADER_1) {
+                buf[pos++] = b;
+                gotHeader = true;
+            } else {
+                pos = 0;  // reset
+            }
+        } else {
+            buf[pos++] = b;
+            // Byte 2 è la lunghezza del payload totale
+            if (pos >= 3) {
+                uint8_t frameLen = buf[2];
+                if (pos >= (size_t)(frameLen + 1)) {  // +1 per checksum
+                    *outLen = pos;
+                    return true;
+                }
+            }
+            if (pos >= 64) break;  // overflow guard
+        }
+    }
+    *outLen = 0;
+    return false;
+}
+
+// Ricava il tipo di dispositivo dalla risposta CMD_DEVICE_INFO
+static std::string parse_model_from_response(const uint8_t* response, size_t len) {
+    if (len < 10) return "UNKNOWN";
+    uint8_t typeCode = response[8];
+    switch (typeCode) {
+        case 0x01: return "2WAY";
+        case 0x02: return "3WAY";
+        case 0x03: return "SUB";
+        default:   return "GENERIC";
+    }
 }
 
 // ======= API pubblica =======
@@ -64,27 +135,50 @@ std::vector<SpeakerDevice> rs485_scan_devices() {
     Serial.println("[RS485] Avvio scansione dispositivi...");
     std::vector<SpeakerDevice> devices;
 
-    // Invia broadcast ping a tutti gli indirizzi 1–127
-    // TODO: sostituire con il protocollo reale PDA1001
-    for (uint8_t addr = 1; addr <= 127; addr++) {
-        uint8_t pingCmd[3] = { 0xFF, addr, CMD_PING };
-        rs485_send_raw(pingCmd, sizeof(pingCmd));
+    // Scan gruppi 0-7, ID 0-15 (max 128 indirizzi)
+    for (uint8_t grp = 0; grp < 8; grp++) {
+        for (uint8_t id = 0; id < 16; id++) {
+            // Costruisci frame CMD_DEVICE_INFO
+            // Frame: [0xFF][0x55][len=5][grp][id][cmd][data][checksum]
+            // len = numero byte dopo il campo len fino al checksum (escluso) = 4
+            uint8_t frame[8];
+            frame[0] = FRAME_HEADER_0;
+            frame[1] = FRAME_HEADER_1;
+            frame[2] = 0x06;          // Lunghezza payload (grp+id+cmd+data = 4 byte + 2 header)
+            frame[3] = grp;
+            frame[4] = id;
+            frame[5] = CMD_DEVICE_INFO;
+            frame[6] = 0x00;          // Nessun dato aggiuntivo
+            frame[7] = calculate_checksum(frame, 7);
 
-        uint8_t respBuf[8];
-        size_t respLen = 0;
-        if (rs485_receive(respBuf, sizeof(respBuf), respLen, RS485_TIMEOUT)) {
-            // TODO: decodificare risposta reale per tipo dispositivo
-            // Per ora simula tre dispositivi fissi se riceve qualcosa
+            rs485_send_frame(frame, 8);
+
+            // Attendi risposta
+            uint8_t response[64];
+            size_t  respLen = 0;
+
+            if (rs485_receive_frame(response, &respLen, 50)) {
+                // Verifica header e comando risposta
+                if (response[0] == FRAME_HEADER_0 &&
+                    response[1] == FRAME_HEADER_1 &&
+                    respLen >= 6 && response[5] == CMD_DEVICE_INFO) {
+
+                    std::string model = parse_model_from_response(response, respLen);
+
+                    SpeakerDevice dev;
+                    dev.id     = (uint8_t)((grp << 4) | id);
+                    dev.type   = model;
+                    dev.online = true;
+                    devices.push_back(dev);
+
+                    Serial.printf("[RS485] Trovato dispositivo: GRP=%d ID=%d Tipo=%s\n",
+                                  grp, id, model.c_str());
+                }
+            }
+
+            vTaskDelay(pdMS_TO_TICKS(10));  // Pausa tra probe
         }
     }
-
-    // ===== STUB: simula 3 dispositivi =====
-    // Rimuovere quando il protocollo reale è implementato
-    Serial.println("[RS485] STUB: restituzione 3 dispositivi simulati");
-    devices.push_back({ 1, "2WAY", true });
-    devices.push_back({ 2, "3WAY", true });
-    devices.push_back({ 3, "SUB",  true });
-    // ===== FINE STUB =====
 
     Serial.printf("[RS485] Scansione completata: %d dispositivi trovati\n", (int)devices.size());
     return devices;

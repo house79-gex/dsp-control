@@ -20,6 +20,25 @@ bool ES8388::begin(TwoWire* wire, uint8_t i2cAddr) {
         return false;
     }
     Serial.printf("[ES8388] Chip trovato su I2C addr 0x%02X\n", _i2cAddr);
+
+    // Sequenza di inizializzazione registri ES8388
+    writeReg(0x00, 0x80);  // Control1: VMIDSEL – abilita riferimento VMID
+    writeReg(0x01, 0x58);  // Control2: power up ADC e DAC
+    writeReg(0x02, 0xF3);  // ChipPower: abilita tutti i blocchi analogici
+    writeReg(0x04, 0x00);  // ADC Power: on
+    writeReg(0x05, 0x00);  // DAC Power: on
+    writeReg(0x06, 0xC0);  // ChipLowPower: disabilita low-power
+    writeReg(0x08, 0x00);  // MasterMode: modalità slave (MCLK/BCLK/LRCK da ESP32)
+    writeReg(0x09, 0xC0);  // ADC Left Volume: 0 dB
+    writeReg(0x0A, 0xC0);  // ADC Right Volume: 0 dB
+    writeReg(0x17, 0x18);  // SDP_IN (ADCCONTROL3): I2S 16-bit
+    writeReg(0x18, 0x02);  // SDP_OUT (DACCONTROL1): I2S 16-bit, LRCLK polarity
+    writeReg(0x1A, 0x00);  // DAC Left Volume: 0 dB
+    writeReg(0x1B, 0x00);  // DAC Right Volume: 0 dB
+    writeReg(0x27, 0xB8);  // LOUT1VOL: volume massimo uscita analogica
+    writeReg(0x2A, 0xB8);  // ROUT1VOL: volume massimo uscita analogica
+
+    Serial.println("[ES8388] Codec inizializzato");
     return true;
 }
 
@@ -114,6 +133,39 @@ void ES8388::setBitsPerSample(uint8_t bits) {
     writeReg(0x17, (sdpIn  & 0xFC) | wl);
     writeReg(0x18, (sdpOut & 0xFC) | wl);
     Serial.printf("[ES8388] Bit depth impostato a %d bit (wl=0x%02X)\n", bits, wl);
+}
+
+void ES8388::setVolume(uint8_t volume) {
+    // Registro DAC digitale 0x1A (L) e 0x1B (R): 0x00=0dB, 0xFF=-96dB (inverso)
+    // Map volume 0-100 → registro 255-0
+    uint8_t regVal = (uint8_t)(255 * (100 - volume) / 100);
+    writeReg(0x1A, regVal);  // Left DAC volume
+    writeReg(0x1B, regVal);  // Right DAC volume
+    Serial.printf("[ES8388] Volume impostato a %d%% (reg: 0x%02X)\n", volume, regVal);
+}
+
+void ES8388::stop() {
+    // Power down ADC: registro 0x03 (ADCPOWER) – coerente con startCapture()
+    writeReg(0x03, 0xFF);  // ADCPOWER: spegni tutti i blocchi ADC
+    // Power down DAC e uscite analogiche: registro 0x04 (DACPOWER) – coerente con startPlayback()
+    writeReg(0x04, 0xC0);  // DACPOWER: spegni DAC L/R
+    // Disabilita alimentazione chip
+    writeReg(0x02, 0xFF);  // ChipPower: power down
+    Serial.println("[ES8388] Codec fermato (power down)");
+}
+
+size_t ES8388::writeSamples(const int16_t* buffer, size_t count, TickType_t timeout) {
+    // Scrive campioni stereo interleaved al DAC via I2S DMA.
+    // count = numero campioni per canale; buffer ha count*2 elementi (L,R alternati).
+    size_t bytesWritten = 0;
+    esp_err_t err = i2s_write(I2S_NUM_0, buffer,
+                              count * 2 * sizeof(int16_t),
+                              &bytesWritten, timeout);
+    if (err != ESP_OK) {
+        Serial.printf("[ES8388] writeSamples i2s_write err=%d\n", err);
+        return 0;
+    }
+    return bytesWritten / (2 * sizeof(int16_t));
 }
 
 // ——— Helper I2C privati ———
