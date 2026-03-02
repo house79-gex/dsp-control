@@ -13,6 +13,8 @@
 #define LCD_BL       7  // TODO: verificare
 #define TOUCH_SDA    5  // TODO: verificare (I2C touch)
 #define TOUCH_SCL    6  // TODO: verificare
+// Indirizzo I2C touch: FT5x06=0x38, GT911=0x5D oppure 0x14
+#define TOUCH_I2C_ADDR  0x38  // TODO: cambiare in base al display
 
 // I2S - ES8388
 #define I2S_SCK     15  // TODO: verificare

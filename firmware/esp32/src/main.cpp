@@ -19,6 +19,8 @@
 #include "ui/ui_dsp_advanced.h"
 #include "ui/ui_wled.h"
 #include "led_ring.h"
+#include "wireless_tx.h"
+#include "drivers/display_driver.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -31,17 +33,8 @@ static lv_disp_draw_buf_t s_drawBuf;
 static lv_color_t* s_buf1 = nullptr;
 static lv_color_t* s_buf2 = nullptr;
 
-// Stub flush callback – da sostituire con driver SPI reale
-static void disp_flush_cb(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* color_p) {
-    lv_disp_flush_ready(drv);
-}
-
-// Stub touch read callback
-static void touch_read_cb(lv_indev_drv_t* drv, lv_indev_data_t* data) {
-    data->state = LV_INDEV_STATE_REL;
-}
-
 static void lvgl_init() {
+    display_init();
     lv_init();
 
     const size_t bufSize = 800 * 20;
@@ -56,14 +49,14 @@ static void lvgl_init() {
     lv_disp_drv_init(&dispDrv);
     dispDrv.hor_res  = 800;
     dispDrv.ver_res  = 480;
-    dispDrv.flush_cb = disp_flush_cb;
+    dispDrv.flush_cb = display_flush;
     dispDrv.draw_buf = &s_drawBuf;
     lv_disp_drv_register(&dispDrv);
 
     static lv_indev_drv_t indevDrv;
     lv_indev_drv_init(&indevDrv);
     indevDrv.type    = LV_INDEV_TYPE_POINTER;
-    indevDrv.read_cb = touch_read_cb;
+    indevDrv.read_cb = touch_read;
     lv_indev_drv_register(&indevDrv);
 
     Serial.println("[LVGL] Inizializzato");
@@ -193,6 +186,14 @@ void setup() {
     // Web server (WiFi AP + REST API)
     web_server_init();
 
+    // Inizializzazione sistema wireless TX (dopo web_server per WiFi già attivo)
+    wireless_tx_init();
+    {
+        WirelessConfig wCfg;
+        storage_load_wireless_config(wCfg);
+        wireless_tx_load_config(wCfg);
+    }
+
     // ——— Task FreeRTOS ———
     // Task DMX output su Core 1 (priorità alta per timing preciso)
     xTaskCreatePinnedToCore(dmx_task,           "DMX",       4096, nullptr, 10, nullptr, 1);
@@ -201,7 +202,9 @@ void setup() {
     // Task heartbeat DSP su Core 1
     xTaskCreatePinnedToCore(dsp_heartbeat_task, "DSP_HB",    2048, nullptr,  3, nullptr, 1);
     // Task autotune su Core 0
-    xTaskCreatePinnedToCore(autotune_task,      "AUTOTUNE",  4096, nullptr,  2, nullptr, 0);
+    xTaskCreatePinnedToCore(autotune_task,           "AUTOTUNE",  4096, nullptr,  2, nullptr, 0);
+    // Task wireless audio TX su Core 1 (alta priorità per latenza 1ms)
+    xTaskCreatePinnedToCore(wireless_audio_tx_task,  "WIFI_TX",   4096, nullptr,  8, nullptr, 1);
 
     demo_startup();
 
