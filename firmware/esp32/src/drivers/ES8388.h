@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <Wire.h>
+#include <freertos/FreeRTOS.h>
 
 // ======= ES8388 Codec Driver =======
 // Controllo via I2C per configurazione ADC gain, sample rate e bit depth
@@ -24,6 +25,21 @@ public:
 
     void setSampleRate(uint32_t sampleRate);
     void setBitsPerSample(uint8_t bits);
+
+    // ——— Controllo alimentazione ———
+
+    // Attiva il percorso ADC (microfono/line-in → I2S).
+    void startCapture();
+
+    // Attiva il percorso DAC (I2S → uscita analogica).
+    void startPlayback();
+
+    // ——— I/O campioni via I2S DMA ———
+
+    // Legge campioni PCM dall'ADC via I2S DMA.
+    // buffer: array destinazione int32_t, count: numero campioni, timeout: ticks FreeRTOS.
+    // Restituisce il numero di campioni effettivamente letti.
+    size_t readSamples(int32_t* buffer, size_t count, TickType_t timeout);
 
 private:
     uint8_t    _i2cAddr;

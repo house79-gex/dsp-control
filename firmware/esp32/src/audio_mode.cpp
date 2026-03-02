@@ -84,6 +84,8 @@ void audio_init() {
         s_es8388.setSampleRate(AUDIO_SAMPLE_RATE);
         s_es8388.setBitsPerSample(AUDIO_BIT_DEPTH);
         s_es8388.setADCGain(s_inputGainDb);
+        s_es8388.startCapture();
+        s_es8388.startPlayback();
         Serial.printf("[AUDIO] ES8388 configurato: %d Hz, %d bit, gain %.1f dB\n",
                       AUDIO_SAMPLE_RATE, AUDIO_BIT_DEPTH, s_inputGainDb);
     } else {

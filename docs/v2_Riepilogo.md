@@ -59,7 +59,7 @@ Il sistema è composto da un **box di controllo centrale** basato su **ESP32-S3*
 ### MixerPassThrough (default)
 - Il relay DPDT è in posizione **NC (Normally Closed)**
 - Il segnale XLR IN viene instradato **direttamente** a XLR OUT verso le casse
-- L'ES8388 rimane in ascolto (ADC attivo) per analisi FFT futura
+- L'ES8388 rimane in ascolto (ADC attivo) per analisi FFT in tempo reale (audio-reactive DMX)
 - Nessuna elaborazione aggiuntiva del segnale audio
 
 ### TestTone

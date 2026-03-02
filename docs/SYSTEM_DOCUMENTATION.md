@@ -55,7 +55,7 @@ Versione: 2.0 | Lingua: Italiano
 | Web Server           | `web_server.h/cpp`     | WiFi AP + REST API completa                    |
 | Storage NVS          | `storage.h/cpp`        | Persistenza assegnazioni su NVS                |
 | WLED Client          | `wled_client.h/cpp`    | Controllo strip neon LED via Wi-Fi (HTTP JSON) |
-| Audio Mode           | `audio_mode.h/cpp`     | ES8388 I2S, relay, FFT stub                    |
+| Audio Mode           | `audio_mode.h/cpp`     | ES8388 I2S, relay, FFT (ADC reale)             |
 | RS-485               | `rs485.h/cpp`          | Driver UART RS-485, TX/RX                      |
 | Config               | `config.h`             | Pin e costanti di sistema                      |
 | Main                 | `main.cpp`             | Setup + loop + task FreeRTOS                   |
