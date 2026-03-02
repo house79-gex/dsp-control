@@ -1,4 +1,5 @@
 #include "ES8388.h"
+#include <driver/i2s.h>
 
 // ======= ES8388 Registro ADC Volume =======
 // Registro 0x09 = Left ADC Volume
@@ -41,14 +42,60 @@ float ES8388::getADCGain() {
 }
 
 void ES8388::setSampleRate(uint32_t sampleRate) {
-    // NOTA: questa funzione è uno stub informativo.
-    // La configurazione precisa del sample rate dell'ES8388 dipende dal clock MCLK
-    // fornito dall'MCU (tipicamente MCLK = 256× sample rate).
-    // In un'implementazione completa con MCLK configurabile, calcolare i registri
-    // di divisione ES8388 (MCLKDIV, BCLKDIV) in base al sample rate richiesto.
-    // Con I2S_SAMPLE_RATE = 44100 il MCLK deve essere ~11.2896 MHz (256×44100).
-    Serial.printf("[ES8388] Sample rate richiesto: %u Hz (configurare MCLK esternamente)\n",
-                  sampleRate);
+    // ES8388 registro 0x08 (MASTERMODE): modalità slave (ESP32 è master I2S)
+    // Bit [5:3] = 000 → MCLKDIV = 256×fs (default, valido per 44100 e 48000 Hz)
+    // Bit [0]   = 0   → slave mode (MCLK, BCLK, LRCK ricevuti dall'esterno)
+    writeReg(0x08, 0x00);
+
+    // ADC oversampling speed: single-speed per ≤48 kHz, double-speed per >48 kHz
+    // Registro 0x0D (ADCCONTROL5), bit[3]: 0=single-speed, 1=double-speed
+    uint8_t adcCtl5 = readReg(0x0D);
+    uint8_t speedBit = (sampleRate > 48000) ? (1 << 3) : 0;
+    writeReg(0x0D, (adcCtl5 & ~(1 << 3)) | speedBit);
+
+    Serial.printf("[ES8388] Sample rate: %u Hz (slave, MCLK=256fs)\n", sampleRate);
+}
+
+void ES8388::startCapture() {
+    // Sequenza di alimentazione ADC secondo datasheet ES8388:
+    // 1. Registro 0x00 (CONTROL1): abilita riferimento analogico e alimentazione ADC
+    //    bit[4]=1 (analog power on), bit[3]=1 (ADC digital power on)
+    uint8_t ctrl1 = readReg(0x00);
+    writeReg(0x00, ctrl1 | 0x18);
+
+    // 2. Registro 0x03 (ADCPOWER): alimenta tutti i componenti ADC (0x00 = tutto on)
+    writeReg(0x03, 0x00);
+
+    // 3. Registro 0x0B (ADCCONTROL3): stereo ADC, modalità normale
+    writeReg(0x0B, 0x02);
+
+    Serial.println("[ES8388] ADC capture avviato");
+}
+
+void ES8388::startPlayback() {
+    // Sequenza di alimentazione DAC secondo datasheet ES8388:
+    // 1. Registro 0x01 (CONTROL2): alimenta il DAC digitale (clear bit[2])
+    uint8_t ctrl2 = readReg(0x01);
+    writeReg(0x01, ctrl2 & ~(1 << 2));
+
+    // 2. Registro 0x04 (DACPOWER): alimenta DAC L/R e driver di uscita
+    //    bit[5]=ROUT2EN, bit[4]=LOUT2EN, bit[3]=ROUT1EN, bit[2]=LOUT1EN,
+    //    bit[1]=DACRPWR, bit[0]=DACLPWR
+    writeReg(0x04, 0x3F);
+
+    Serial.println("[ES8388] DAC playback avviato");
+}
+
+size_t ES8388::readSamples(int32_t* buffer, size_t count, TickType_t timeout) {
+    // Usare con I2S configurato a 32-bit (o 24-bit padded a 32-bit).
+    // Per configurazioni 16-bit usare i2s_read direttamente con buffer int16_t.
+    size_t bytesRead = 0;
+    esp_err_t err = i2s_read(I2S_NUM_0, buffer, count * sizeof(int32_t), &bytesRead, timeout);
+    if (err != ESP_OK) {
+        Serial.printf("[ES8388] readSamples i2s_read err=%d\n", err);
+        return 0;
+    }
+    return bytesRead / sizeof(int32_t);
 }
 
 void ES8388::setBitsPerSample(uint8_t bits) {

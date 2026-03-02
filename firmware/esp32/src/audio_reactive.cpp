@@ -7,6 +7,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
+#include <driver/i2s.h>
 
 // ======= Variabili di stato =======
 
@@ -385,17 +386,23 @@ std::vector<AudioReactiveScenario*> audio_reactive_get_all_scenarios() {
 // Task FreeRTOS per elaborazione FFT su Core 0
 void audio_fft_task(void* param) {
     Serial.println("[AUDIO_REACT] Task FFT avviato su Core 0");
-    const TickType_t period = pdMS_TO_TICKS(25); // 40 Hz
+    // Buffer stereo 16-bit interleaved: AUDIO_FFT_SIZE frame × 2 canali.
+    // Corrisponde alla configurazione I2S (I2S_BITS_PER_SAMPLE_16BIT, RIGHT_LEFT).
+    static int16_t samples[AUDIO_FFT_SIZE * 2];
+    const TickType_t period = pdMS_TO_TICKS(25);  // 40 Hz
     TickType_t lastWake = xTaskGetTickCount();
 
     for (;;) {
-        // Il task processa l'audio se disponibile in coda
-        // In produzione qui si leggerebbe dal buffer I2S dell'ES8388
-        // Simulazione: genera silenzio se non c'è audio reale
-        if (s_enabled) {
-            // Nota: la lettura reale dell'ADC avviene in audio_mode.cpp
-            // Questo task elabora i dati già campionati
+        size_t bytesRead = 0;
+        // Legge campioni dall'ADC ES8388 tramite I2S DMA (16-bit stereo interleaved)
+        esp_err_t err = i2s_read(I2S_NUM_0, samples, sizeof(samples), &bytesRead, pdMS_TO_TICKS(25));
+        if (err != ESP_OK) {
+            Serial.printf("[AUDIO_REACT] i2s_read err=%d\n", err);
+        } else if (s_enabled && bytesRead > 0) {
+            // Passa i campioni al processore audio-reactive DMX
+            audio_reactive_process(samples, bytesRead / sizeof(int16_t));
         }
+
         vTaskDelayUntil(&lastWake, period);
     }
 }
