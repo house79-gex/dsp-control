@@ -178,7 +178,7 @@
 <!-- TOP BAR -->
 <div class="topbar">
   <span class="logo">🌈 WLED Neon LED</span>
-  <span class="sub">Controllo Strip Neon – DSP Control v2.1</span>
+  <span class="sub">Controllo Strip Neon – DSP Control v2.1.0</span>
   <span class="badge">● 192.168.4.1</span>
 </div>
 
@@ -421,9 +421,15 @@
   // ======= Zone Toggle =======
   function onZoneToggle() {
     zones.logoSx     = document.getElementById('tog-logo-sx').checked;
-    zones.logoDx     = document.getElementById('tog-logo-dx').checked;
     zones.frontFrame = document.getElementById('tog-front-frame').checked;
     zones.spare      = document.getElementById('tog-spare').checked;
+    // Keep logo_dx in sync with logo_sx when mirror mode is active
+    if (mirror) {
+      document.getElementById('tog-logo-dx').checked = zones.logoSx;
+      zones.logoDx = zones.logoSx;
+    } else {
+      zones.logoDx = document.getElementById('tog-logo-dx').checked;
+    }
     updateCabinets();
   }
 
