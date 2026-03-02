@@ -3,15 +3,30 @@
 #include <stdbool.h>
 
 // ======= WLED Client – Controllo strip neon LED via Wi-Fi =======
+//
+// Supporto controller:
+//   2CH – GLEDOPTO GL-C-015WL-D in modalità 2 canali
+//          CH1 → ZONE_LOGO_LEFT, CH2 → ZONE_LOGO_RIGHT
+//   4CH – GLEDOPTO GL-C-015WL-D in modalità 4 canali (default consigliato)
+//          CH1 → ZONE_LOGO_LEFT, CH2 → ZONE_LOGO_RIGHT
+//          CH3 → ZONE_FRONT_FRAME, CH4 → ZONE_SPARE
+//
+// Calcolo PSU per ~8m totali (logo_sx + logo_dx + front_frame):
+//   WS2811 12V RGBIC 96 LED/m, 1 pixel = 3 LED → ~9.6 W/m
+//   P = 8m × 9.6 W/m = 76.8 W  →  I = 6.4 A a 12 V
+//   Alimentatore consigliato: Mean Well LRS-150-12 (12V, 12.5A, 150W)
+//   Alternativa:              Mean Well LRS-100-12 (12V, 8.5A, 100W)
 
 #define MAX_WLED_CONTROLLERS 8
 #define MAX_WLED_SCENES      20
 
+// Zone WLED – ogni zona corrisponde a un canale del controller 4CH.
+// In modalità 2CH solo ZONE_LOGO_LEFT e ZONE_LOGO_RIGHT sono disponibili.
 enum WledZone {
-    ZONE_LOGO_LEFT   = 0,
-    ZONE_LOGO_RIGHT  = 1,
-    ZONE_FRONT_FRAME = 2,
-    ZONE_SPARE       = 3
+    ZONE_LOGO_LEFT   = 0,   // CH1 – profilo sinistro logo cassa  (~2.5m, ~80px)
+    ZONE_LOGO_RIGHT  = 1,   // CH2 – profilo destro logo cassa    (~2.5m, ~80px)
+    ZONE_FRONT_FRAME = 2,   // CH3 – cornice frontale cassa       (~3.0m, ~96px) [4CH only]
+    ZONE_SPARE       = 3    // CH4 – canale aggiuntivo opzionale                [4CH only]
 };
 
 struct WledController {
@@ -57,6 +72,10 @@ void wled_client_mirror_zones(uint8_t ctrl_idx, WledZone zone_a, WledZone zone_b
 void wled_client_blackout();
 bool wled_client_get_status(uint8_t ctrl_idx);
 void wled_client_discover();
+
+// Configura il numero di pixel per una zona specifica.
+// Utile per adattare la configurazione a lunghezze di strip diverse da quelle di default.
+void wled_client_set_zone_config(uint8_t ctrl_idx, WledZone zone, uint16_t pixels);
 
 // ——— Accesso diretto a controller/scene in RAM ———
 

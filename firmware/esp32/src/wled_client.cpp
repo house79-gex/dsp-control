@@ -285,7 +285,12 @@ bool wled_client_get_status(uint8_t ctrl_idx) {
 
 void wled_client_discover() {
     // Scansione UDP broadcast sulla porta WLED (21324)
-    // I device WLED rispondono con un pacchetto di notifica
+    // I device WLED rispondono con un pacchetto di notifica.
+    // Pixel di default calcolati per ~8m totali (logo_sx ~2.5m + logo_dx ~2.5m + front_frame ~3m):
+    //   WS2811 96 LED/m, 1 pixel = 3 LED → 32 pixel/m
+    //   logo_left/right: ~2.5m × 32 px/m ≈ 80 px per canale
+    //   front_frame:     ~3.0m × 32 px/m ≈ 96 px
+    //   spare:           riservato, 0 px di default
     WiFiUDP udp;
     udp.begin(WLED_UDP_PORT);
 
@@ -308,18 +313,36 @@ void wled_client_discover() {
                 if (strcmp(s_controllers[i].ip, remoteIp) == 0) { known = true; break; }
             }
             if (!known && s_ctrl_count < MAX_WLED_CONTROLLERS) {
+                // Interroga il controller per rilevare il numero di canali supportati
+                String resp;
+                uint8_t num_ch = 2; // default 2CH
+                if (http_get_json(remoteIp, "/json/info", resp)) {
+                    StaticJsonDocument<512> info;
+                    if (!deserializeJson(info, resp)) {
+                        // GLEDOPTO GL-C-015WL-D 4CH riporta leds.segs >= 4
+                        int segs = info["leds"]["segs"] | 0;
+                        if (segs >= 4) num_ch = 4;
+                    }
+                }
+
                 WledController ctrl = {};
                 strncpy(ctrl.ip, remoteIp, sizeof(ctrl.ip) - 1);
                 snprintf(ctrl.name, sizeof(ctrl.name), "WLED_%d", s_ctrl_count);
-                ctrl.num_channels  = 2;
-                ctrl.pixels_per_ch[0] = 80;
-                ctrl.pixels_per_ch[1] = 80;
+                ctrl.num_channels  = num_ch;
+                // Pixel di default per ~8m totali suddivisi tra i canali attivi
+                ctrl.pixels_per_ch[0] = 80;  // logo_left  (~2.5m)
+                ctrl.pixels_per_ch[1] = 80;  // logo_right (~2.5m)
+                ctrl.pixels_per_ch[2] = (num_ch >= 3) ? 96 : 0;  // front_frame (~3m)
+                ctrl.pixels_per_ch[3] = 0;   // spare (non collegato di default)
                 ctrl.zone_map[0] = ZONE_LOGO_LEFT;
                 ctrl.zone_map[1] = ZONE_LOGO_RIGHT;
+                ctrl.zone_map[2] = ZONE_FRONT_FRAME;
+                ctrl.zone_map[3] = ZONE_SPARE;
                 ctrl.online       = true;
                 ctrl.last_seen_ms = millis();
                 s_controllers[s_ctrl_count++] = ctrl;
-                Serial.printf("[WLED] Scoperto nuovo controller: %s\n", remoteIp);
+                Serial.printf("[WLED] Scoperto nuovo controller %dCH: %s\n",
+                              num_ch, remoteIp);
             }
         }
         delay(10);
@@ -352,4 +375,13 @@ void wled_remove_scene(uint8_t idx) {
         s_scenes[i] = s_scenes[i + 1];
     }
     s_scene_count--;
+}
+
+void wled_client_set_zone_config(uint8_t ctrl_idx, WledZone zone, uint16_t pixels) {
+    if (ctrl_idx >= s_ctrl_count) return;
+    WledController& ctrl = s_controllers[ctrl_idx];
+    int ch = find_channel_for_zone(ctrl, zone);
+    if (ch < 0 || ch >= 4) return;
+    ctrl.pixels_per_ch[ch] = pixels;
+    Serial.printf("[WLED] Controller %d zone %d: %d pixel\n", ctrl_idx, (int)zone, pixels);
 }
