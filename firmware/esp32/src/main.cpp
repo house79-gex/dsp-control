@@ -159,6 +159,18 @@ void setup() {
     g_assignments = storage_load_assignments();
     Serial.printf("[MAIN] %d assegnazioni caricate da NVS\n", (int)g_assignments.size());
 
+    // Carica configurazione audio da NVS (default SC LIVE 4: -14 dB, 44100 Hz, 24 bit)
+    float    inputGainDb = -14.0f;
+    uint32_t sampleRate  = AUDIO_SAMPLE_RATE;
+    uint8_t  bitDepth    = AUDIO_BIT_DEPTH;
+    if (storage_load_audio_config(&inputGainDb, &sampleRate, &bitDepth)) {
+        Serial.println("[MAIN] Audio config caricata da NVS");
+    } else {
+        Serial.println("[MAIN] Audio config default SC LIVE 4 (-14 dB, 44100 Hz, 24 bit)");
+        storage_save_audio_config(inputGainDb, sampleRate, bitDepth);
+    }
+    audio_set_input_gain(inputGainDb);
+
     // Carica configurazione sistema
     SystemConfig sysCfg = storage_load_system_config();
     led_ring_set_volume(sysCfg.masterVolume > 0 ? sysCfg.masterVolume : 80);

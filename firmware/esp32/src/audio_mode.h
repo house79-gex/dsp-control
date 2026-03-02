@@ -24,3 +24,8 @@ void audio_fft_process();
 float audio_get_peak_db();
 void audio_get_channel_levels(float& left, float& right);
 const FftResult& audio_get_fft_result();
+
+// Input gain ADC (ES8388 PGA): range -96..+24 dB
+// Default: -14.0 dB per compensare output +18 dBu del Denon DJ SC LIVE 4
+void  audio_set_input_gain(float gainDb);
+float audio_get_input_gain();

@@ -1,5 +1,6 @@
 #include "audio_mode.h"
 #include "config.h"
+#include "drivers/ES8388.h"
 #include <driver/i2s.h>
 #include <math.h>
 #include <esp_dsp.h>
@@ -7,13 +8,17 @@
 // ======= Configurazione I2S =======
 // TODO: verificare numeri porta e pin con il modulo ES8388 fisico
 #define I2S_PORT        I2S_NUM_0
-#define I2S_SAMPLE_RATE 48000
+#define I2S_SAMPLE_RATE AUDIO_SAMPLE_RATE  // 44100 Hz – match Denon DJ SC LIVE 4
 #define I2S_BUFFER_SIZE 256
 #define FFT_SIZE              512
 #define NUM_BANDS             32
 // Fattore di normalizzazione FFT: FFT_SIZE/4 perché le magnitudini tipiche dopo
 // dsps_cplx2reC_fc32 sono nell'ordine di N/4 per segnali a piena ampiezza
 #define FFT_NORM_FACTOR       (FFT_SIZE / 4.0f)
+
+// ES8388 codec driver (controllo I2C per ADC gain)
+static ES8388 s_es8388;
+static float  s_inputGainDb = -14.0f;  // Default per SC LIVE 4 (+18 dBu → -14 dB att.)
 
 static AudioMode s_currentMode = AudioMode::MixerPassThrough;
 
@@ -71,6 +76,19 @@ void audio_init() {
     }
 
     Serial.println("[AUDIO] I2S inizializzato");
+
+    // Inizializza ES8388 codec via I2C per controllo ADC gain.
+    // Wire.begin() è idempotente su ESP32 – sicuro chiamare più volte.
+    if (!Wire.isEnabled()) Wire.begin();
+    if (s_es8388.begin(&Wire, ES8388_I2C_ADDR)) {
+        s_es8388.setSampleRate(AUDIO_SAMPLE_RATE);
+        s_es8388.setBitsPerSample(AUDIO_BIT_DEPTH);
+        s_es8388.setADCGain(s_inputGainDb);
+        Serial.printf("[AUDIO] ES8388 configurato: %d Hz, %d bit, gain %.1f dB\n",
+                      AUDIO_SAMPLE_RATE, AUDIO_BIT_DEPTH, s_inputGainDb);
+    } else {
+        Serial.println("[AUDIO] ES8388 non risponde via I2C – gain software only");
+    }
 
     // Inizializza tabelle FFT e finestra Hann
     dsps_fft2r_init_fc32(nullptr, FFT_SIZE);
@@ -218,4 +236,14 @@ void audio_get_channel_levels(float& left, float& right) {
 
 const FftResult& audio_get_fft_result() {
     return s_fftResult;
+}
+
+void audio_set_input_gain(float gainDb) {
+    gainDb = constrain(gainDb, -96.0f, 24.0f);
+    s_inputGainDb = gainDb;
+    s_es8388.setADCGain(gainDb);
+}
+
+float audio_get_input_gain() {
+    return s_inputGainDb;
 }

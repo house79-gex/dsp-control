@@ -547,6 +547,38 @@ Neon logo:
 | POST   | `/api/wled/discover`          | Scopri controller via UDP |
 | GET    | `/api/wled/status`            | Stato sistema WLED |
 
+### 13.7 Integrazione Denon DJ SC LIVE 4
+
+Il sistema DSP-Control è ottimizzato per funzionare con la console DJ Denon DJ SC LIVE 4 come sorgente audio principale.
+
+#### Configurazione Automatica
+
+Al primo avvio, il sistema applica la configurazione default:
+- Sample rate: **44.1 kHz** (standard DJ, match nativo SC LIVE 4)
+- Bit depth: **24-bit** (ES8388 supporta 24-bit)
+- Input gain: **-14 dB** (per compensare output +18 dBu della SC LIVE 4)
+
+#### Problema di Gain Staging
+
+SC LIVE 4 output +18 dBu vs ES8388 ADC nominale +4 dBu → **14 dB di differenza**.
+Il sistema compensa automaticamente impostando il PGA ADC a -14 dB.
+
+#### Endpoint API
+
+| Metodo | Path | Descrizione |
+|--------|------|-------------|
+| GET | `/api/audio/input-gain` | Leggi gain ADC corrente |
+| POST | `/api/audio/input-gain` | Imposta gain ADC (body: `{"gain": -14.0}`) |
+
+#### Collegamento Hardware
+
+```
+SC LIVE 4 Main XLR Out L → DSP-Control XLR Input L
+SC LIVE 4 Main XLR Out R → DSP-Control XLR Input R
+```
+
+Per dettagli completi, vedere [SC_LIVE_4_INTEGRATION.md](SC_LIVE_4_INTEGRATION.md).
+
 ### v1.0.0 (baseline)
 - Stub RS-485 con 3 dispositivi simulati
 - Web server base con endpoint volume/modalità/discovery

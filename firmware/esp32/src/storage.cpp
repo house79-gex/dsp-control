@@ -496,53 +496,30 @@ void storage_load_wled_scenes() {
     Serial.printf("[STORAGE] Caricate scene WLED da NVS\n");
 }
 
+// ======= Persistenza Configurazione Audio =======
 
-// ======= Configurazione Wireless =======
-
-void storage_save_wireless_config(const WirelessConfig& cfg) {
-    StaticJsonDocument<256> doc;
-    doc["enabled"] = cfg.enabled;
-    doc["mode"]    = (int)cfg.mode;
-    JsonArray mac1 = doc.createNestedArray("peer1_mac");
-    JsonArray mac2 = doc.createNestedArray("peer2_mac");
-    for (int i = 0; i < 6; i++) {
-        mac1.add(cfg.peer1Mac[i]);
-        mac2.add(cfg.peer2Mac[i]);
-    }
-    String buf;
-    serializeJson(doc, buf);
-    s_prefs.putString("wireless_cfg", buf.c_str());
-    Serial.printf("[STORAGE] Config wireless salvata (enabled=%d mode=%d)\n",
-                  cfg.enabled, (int)cfg.mode);
-}
-
-bool storage_load_wireless_config(WirelessConfig& cfg) {
-    String json = s_prefs.getString("wireless_cfg", "");
-    if (json.isEmpty()) {
-        // Default factory: wireless disabilitato, MAC predefiniti
-        cfg.enabled = false;
-        cfg.mode    = WirelessAudioMode::STEREO_SPLIT;
-        cfg.peer1Mac[0]=0x24; cfg.peer1Mac[1]=0x0A; cfg.peer1Mac[2]=0xC4;
-        cfg.peer1Mac[3]=0x12; cfg.peer1Mac[4]=0x34; cfg.peer1Mac[5]=0x56;
-        cfg.peer2Mac[0]=0x24; cfg.peer2Mac[1]=0x0A; cfg.peer2Mac[2]=0xC4;
-        cfg.peer2Mac[3]=0x78; cfg.peer2Mac[4]=0x9A; cfg.peer2Mac[5]=0xBC;
-        Serial.println("[STORAGE] Config wireless: default factory");
+bool storage_save_audio_config(float inputGainDb, uint32_t sampleRate, uint8_t bitDepth) {
+    AudioConfig cfg = { inputGainDb, sampleRate, bitDepth };
+    size_t written = s_prefs.putBytes("audio_cfg", &cfg, sizeof(AudioConfig));
+    if (written != sizeof(AudioConfig)) {
+        Serial.println("[STORAGE] Errore salvataggio audio config");
         return false;
     }
-    StaticJsonDocument<256> doc;
-    DeserializationError err = deserializeJson(doc, json);
-    if (err != DeserializationError::Ok) return false;
-    cfg.enabled = doc["enabled"] | false;
-    cfg.mode    = (WirelessAudioMode)(doc["mode"] | 0);
-    if (doc.containsKey("peer1_mac")) {
-        JsonArray arr = doc["peer1_mac"].as<JsonArray>();
-        for (int i = 0; i < 6 && i < (int)arr.size(); i++) cfg.peer1Mac[i] = arr[i];
+    Serial.printf("[STORAGE] Audio config salvata: gain=%.1f dB, rate=%u Hz, depth=%u bit\n",
+                  inputGainDb, sampleRate, bitDepth);
+    return true;
+}
+
+bool storage_load_audio_config(float* inputGainDb, uint32_t* sampleRate, uint8_t* bitDepth) {
+    AudioConfig cfg = {};
+    size_t size = s_prefs.getBytes("audio_cfg", &cfg, sizeof(AudioConfig));
+    if (size != sizeof(AudioConfig)) {
+        return false;
     }
-    if (doc.containsKey("peer2_mac")) {
-        JsonArray arr = doc["peer2_mac"].as<JsonArray>();
-        for (int i = 0; i < 6 && i < (int)arr.size(); i++) cfg.peer2Mac[i] = arr[i];
-    }
-    Serial.printf("[STORAGE] Config wireless caricata (enabled=%d mode=%d)\n",
-                  cfg.enabled, (int)cfg.mode);
+    *inputGainDb = cfg.inputGainDb;
+    *sampleRate  = cfg.sampleRate;
+    *bitDepth    = cfg.bitDepth;
+    Serial.printf("[STORAGE] Audio config caricata: gain=%.1f dB, rate=%u Hz, depth=%u bit\n",
+                  cfg.inputGainDb, cfg.sampleRate, cfg.bitDepth);
     return true;
 }
