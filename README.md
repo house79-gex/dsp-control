@@ -1,6 +1,6 @@
 # DSP Control – Sistema Audio PA Professionale
 
-Sistema di controllo DSP per impianti audio professionale basato su **ESP32-S3** con catena **RS-485** verso moduli amplificati **PDA1001 + CQ260D**, controller DMX512 per luci, audio-reactive e autotune automatico.
+Sistema di controllo DSP per impianti audio professionale basato su **ESP32-S3** con catena **RS-485** verso **moduli amplificatori attivi PDA1001 con DSP CQ260D integrato**, controller DMX512 per luci, audio-reactive e autotune automatico.
 
 ## Panoramica
 
@@ -26,7 +26,8 @@ Il sistema gestisce un impianto audio PA multi-cassa + illuminazione scenica da 
 dsp-control/
 ├── README.md
 ├── web/
-│   └── preview.html         ← Anteprima HTML interfaccia completa (standalone)
+│   ├── preview.html         ← Anteprima HTML interfaccia completa (standalone)
+│   └── wled_preview.html    ← Anteprima HTML interfaccia WLED Neon LED (4CH)
 ├── docs/
 │   └── v2_Riepilogo.md
 ├── firmware/
@@ -92,8 +93,7 @@ dsp-control/
 | Relay DPDT optoisolato        | 1        |
 | LED ring WS2812B 16 LED       | 2        |
 | Encoder rotativo              | 2        |
-| Modulo PDA1001 + CQ260D       | N (uno per cassa) |
-| Fixture DMX512                | N        |
+| Modulo PDA1001 con DSP CQ260D integrato | N (uno per cassa) |
 
 ## Compilazione Firmware
 
@@ -156,7 +156,7 @@ flutter build apk
 | LVGL driver display     | 🔶 Stub      |
 
 
-Sistema di controllo DSP per impianti audio professionale basato su **ESP32-S3** con catena **RS-485** verso moduli amplificati **PDA1001 + CQ260D**.
+Sistema di controllo DSP per impianti audio professionale basato su **ESP32-S3** con catena **RS-485** verso **moduli amplificatori attivi PDA1001 con DSP CQ260D integrato**.
 
 ## Panoramica
 
@@ -219,7 +219,7 @@ dsp-control/
 | Codec M5Stack ES8388 (I2S)    | 1        |
 | MAX485 breakout (RS-485)      | 1        |
 | Relay DPDT optoisolato        | 1        |
-| Modulo PDA1001 + CQ260D       | N (uno per cassa) |
+| Modulo PDA1001 con DSP CQ260D integrato | N (uno per cassa) |
 
 ## Come Compilare il Firmware
 

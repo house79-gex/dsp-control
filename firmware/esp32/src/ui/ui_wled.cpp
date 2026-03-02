@@ -5,7 +5,10 @@ static lv_obj_t* s_ctrlList        = nullptr;
 static lv_obj_t* s_brightLabel     = nullptr;
 static lv_obj_t* s_sceneDropdown   = nullptr;
 
-// Callback master brightness
+// Toggle di zona: ogni elemento indica se la zona è abilitata
+static bool s_zone_enabled[4] = { true, true, true, false };
+
+// Callback master brightness – aggiorna tutte le zone abilitate
 static void cb_brightness(lv_event_t* e) {
     lv_obj_t* slider = lv_event_get_target(e);
     int val = lv_slider_get_value(slider);
@@ -15,10 +18,23 @@ static void cb_brightness(lv_event_t* e) {
     uint8_t bri = (uint8_t)(val * 255 / 100);
     uint8_t n = wled_get_controller_count();
     for (uint8_t i = 0; i < n; i++) {
-        wled_client_set_brightness(i, ZONE_LOGO_LEFT,   bri);
-        wled_client_set_brightness(i, ZONE_LOGO_RIGHT,  bri);
-        wled_client_set_brightness(i, ZONE_FRONT_FRAME, bri);
+        if (s_zone_enabled[ZONE_LOGO_LEFT])
+            wled_client_set_brightness(i, ZONE_LOGO_LEFT,   bri);
+        if (s_zone_enabled[ZONE_LOGO_RIGHT])
+            wled_client_set_brightness(i, ZONE_LOGO_RIGHT,  bri);
+        if (s_zone_enabled[ZONE_FRONT_FRAME])
+            wled_client_set_brightness(i, ZONE_FRONT_FRAME, bri);
+        if (s_zone_enabled[ZONE_SPARE])
+            wled_client_set_brightness(i, ZONE_SPARE,       bri);
     }
+}
+
+// Callback toggle zona
+static void cb_zone_toggle(lv_event_t* e) {
+    lv_obj_t* cb = lv_event_get_target(e);
+    uintptr_t zone_idx = (uintptr_t)lv_event_get_user_data(e);
+    if (zone_idx >= 4) return;
+    s_zone_enabled[zone_idx] = (lv_obj_get_state(cb) & LV_STATE_CHECKED) != 0;
 }
 
 // Callback BLACKOUT
@@ -92,18 +108,34 @@ void ui_wled_create(lv_obj_t* parent) {
     lv_obj_set_size(s_sceneDropdown, 260, 36);
     lv_obj_align(s_sceneDropdown, LV_ALIGN_TOP_LEFT, 70, 106);
 
+    // Toggle per zona (4CH) – ON/OFF per ogni zona
+    static const char* zone_names[] = { "Logo SX (CH1)", "Logo DX (CH2)",
+                                         "Front Frame (CH3)", "Spare (CH4)" };
+    lv_obj_t* zoneLabel = lv_label_create(parent);
+    lv_label_set_text(zoneLabel, "Zone attive:");
+    lv_obj_align(zoneLabel, LV_ALIGN_TOP_LEFT, 10, 152);
+
+    for (int z = 0; z < 4; z++) {
+        lv_obj_t* cb = lv_checkbox_create(parent);
+        lv_checkbox_set_text(cb, zone_names[z]);
+        lv_obj_align(cb, LV_ALIGN_TOP_LEFT, 10 + (z % 2) * 280, 176 + (z / 2) * 28);
+        if (s_zone_enabled[z]) lv_obj_add_state(cb, LV_STATE_CHECKED);
+        lv_obj_add_event_cb(cb, cb_zone_toggle, LV_EVENT_VALUE_CHANGED,
+                            (void*)(uintptr_t)z);
+    }
+
     // Lista controller (stub scrollabile)
     lv_obj_t* ctrlLabel = lv_label_create(parent);
     lv_label_set_text(ctrlLabel, "Controller collegati:");
-    lv_obj_align(ctrlLabel, LV_ALIGN_TOP_LEFT, 10, 158);
+    lv_obj_align(ctrlLabel, LV_ALIGN_TOP_LEFT, 10, 238);
 
     s_ctrlList = lv_list_create(parent);
-    lv_obj_set_size(s_ctrlList, 380, 180);
-    lv_obj_align(s_ctrlList, LV_ALIGN_TOP_LEFT, 10, 180);
+    lv_obj_set_size(s_ctrlList, 380, 160);
+    lv_obj_align(s_ctrlList, LV_ALIGN_TOP_LEFT, 10, 260);
 
     // Bottone DISCOVER
     lv_obj_t* btnDiscover = lv_btn_create(parent);
-    lv_obj_align(btnDiscover, LV_ALIGN_TOP_LEFT, 400, 158);
+    lv_obj_align(btnDiscover, LV_ALIGN_TOP_LEFT, 400, 238);
     lv_obj_set_size(btnDiscover, 160, 36);
     lv_obj_set_style_bg_color(btnDiscover, lv_color_hex(0x226622), 0);
     lv_obj_add_event_cb(btnDiscover, cb_discover, LV_EVENT_CLICKED, NULL);

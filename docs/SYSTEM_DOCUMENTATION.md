@@ -14,8 +14,7 @@ Versione: 2.0 | Lingua: Italiano
 | Microcontroller  | ESP32-S3        | –           | Elaborazione centrale, WiFi, USB OTG  |
 | Codec Audio      | ES8388          | I2S + I2C   | ADC/DAC stereo 24-bit 48kHz           |
 | Transceiver RS485| MAX485 / equiv. | UART2       | Comunicazione con DSP CQ260D          |
-| Amplificatore DSP| CQ260D          | RS-485      | DSP + amplificazione 260W             |
-| Modulo Amplif.   | PDA1001         | RS-485      | Modulo amplificato passivo            |
+| Modulo Amplif. DSP| PDA1001 + CQ260D integrato | RS-485 | Modulo amplificatore attivo 1000W con DSP CQ260D integrato |
 | Display          | TFT 800×480     | SPI         | Interfaccia locale LVGL               |
 | Touch            | GT911 / FT6236  | I2C         | Touch capacitivo                      |
 | Relay DPDT       | Optoisolato     | GPIO        | Commutazione TestTone / Passthrough   |
@@ -389,6 +388,14 @@ Il sistema analizza il segnale audio in tempo reale e controlla le luci di conse
 
 ## 12. Changelog
 
+### v2.1.0 (2026)
+- ✅ Supporto controller WLED 4CH (GLEDOPTO GL-C-015WL-D) con discovery automatico
+- ✅ Calcolo PSU aggiornato per ~8m striscia (LRS-150-12 + alternativa LRS-100-12)
+- ✅ Layout fisico cabinet aggiornato (controller in alto, PSU in basso, derivazione 230V da PowerCON)
+- ✅ Modulo amplificatore PDA1001 + CQ260D corretto come modulo unico integrato
+- ✅ Aggiunta funzione `wled_client_set_zone_config()` per configurazione pixel per zona
+- ✅ UI LVGL: toggle ON/OFF per ogni zona (4CH), ZONE_SPARE incluso nel master brightness
+
 ### v2.0.0 (2026)
 - ✅ Implementato protocollo RS-485 CQ260D reale (da reverse engineering)
 - ✅ Controller DMX512-A completo con 14 scene predefinite
@@ -433,7 +440,7 @@ ESP32-S3 (Access Point 192.168.4.1)
 
 | Componente              | Modello/Specifiche                              |
 |-------------------------|-------------------------------------------------|
-| Controller WLED         | GLEDOPTO GL-C-015WL-D (ESP32, 2CH o 4CH)       |
+| Controller WLED         | GLEDOPTO GL-C-015WL-D (ESP32, **4CH** consigliato, max 800 LED/ch → 3200 LED totali) |
 | Strip LED               | WS2811 12V RGBIC neon flex, 96 LED/m            |
 | Passo pixel             | 1 pixel ogni 3 LED (taglio ogni 3 LED)          |
 | Alimentatore            | Mean Well LRS-150-12 (12V, 12.5A, 150W)        |
@@ -448,60 +455,77 @@ ESP32-S3 (Access Point 192.168.4.1)
 
 ```
 Striscia neon WS2811 12V: ~9.6W/m
-Lunghezza totale stimata per cabinet: ~8m
+Lunghezza totale stimata per cabinet: ~8m (logo_sx ~2.5m + logo_dx ~2.5m + front_frame ~3m)
 
 P_totale = 8m × 9.6W/m = 76.8W
 I_totale = 76.8W / 12V = 6.4A
 
-Alimentatore consigliato: Mean Well LRS-150-12 (12V, 12.5A, 150W) ✓
-Margine di sicurezza: 12.5A / 6.4A ≈ 195%
+Alimentatore consigliato:  Mean Well LRS-150-12 (12V, 12.5A, 150W) ✓  margine ~195%
+Alternativa (uso parziale): Mean Well LRS-100-12 (12V, 8.5A, 100W)     margine ~133%
+  → sufficiente se non si usa bianco pieno costante su tutte le zone
 ```
 
 ### 13.4 Schema Cablaggio
 
 ```
-Mean Well LRS-150-12 (12V, 12.5A)
+Derivazione 230V dal PowerCON IN/OUT del modulo amplificatore PDA1001+CQ260D
 │
-├── +12V ──→ Strip VCC (rosso)
-├── GND  ──→ Strip GND (nero/bianco)
-│
-└── GLEDOPTO GL-C-015WL-D
+└──► Mean Well LRS-150-12 (12V, 12.5A)
         │
-        ├── +5V/USB → alimentazione logica controller (via USB-C o 5V separato)
-        ├── CH1 DATA ──[220Ω]──→ Strip DATA zona logo_left
-        ├── CH2 DATA ──[220Ω]──→ Strip DATA zona logo_right
-        ├── CH3 DATA ──[220Ω]──→ Strip DATA zona front_frame
-        └── CH4 DATA ──[220Ω]──→ Strip DATA zona spare
+        ├── +12V ──→ Strip VCC (rosso)
+        ├── GND  ──→ Strip GND (nero/bianco)
+        │
+        └── GLEDOPTO GL-C-015WL-D
+                │
+                ├── +5V/USB → alimentazione logica controller (via USB-C o 5V separato)
+                ├── CH1 DATA ──[220Ω]──→ Strip DATA zona logo_left
+                ├── CH2 DATA ──[220Ω]──→ Strip DATA zona logo_right
+                ├── CH3 DATA ──[220Ω]──→ Strip DATA zona front_frame
+                └── CH4 DATA ──[220Ω]──→ Strip DATA zona spare
 
 Resistore sui DATA:  220Ω–470Ω sul segnale DATA
 Condensatore:        470µF–1000µF/25V vicino al connettore alimentazione strip
 Nota:                Il terminatore DMX 120Ω si applica solo all'ultimo device RS-485,
                      NON alle strip WS2811 (protocollo unidirezionale)
+Cablaggio fisico:    cavi 230V/12V su angolo DX del cabinet, cavi audio su angolo SX
+                     (separati per minimizzare EMI), tutti fissati sotto fonoassorbente
 ```
 
 ### 13.5 Layout Fisico nel Cabinet
 
 ```
-  [ TOP ]
-  ┌─────────────────────────────────────────┐
-  │  Controller WLED (soffitto, scomparto    │
-  │  tweeter)                               │
-  ├────────────────┬────────────────────────┤
-  │  Horn/tweeter  │  Crossover (divisore)  │
-  ├────────────────┴────────────────────────┤
-  │         Woofer / midrange               │
-  ├─────────────────────────────────────────┤
-  │  Cavi audio    │    Cavi 12V            │
-  │  (sx)          │    (dx, separati)      │
-  ├─────────────────────────────────────────┤
-  │  PSU LRS-150-12 (box inferiore,         │
-  │  con ventilazione)                      │
-  └─────────────────────────────────────────┘
-  [ BOTTOM ]
+[ TOP – Cielo cassa ]
+┌─────────────────────────────────────────┐
+│  Controller WLED GLEDOPTO               │
+│  (montato sul cielo, sopra la tromba,   │
+│   equidistante dai 2 laterali)          │
+├──────────────┬──────────────────────────┤
+│  Horn/       │  Crossover 2 vie         │
+│  Tweeter     │  (sul divisorio centrale │
+│              │   vicino pannello post.) │
+├──────────────┴──────────────────────────┤
+│  Cavi audio  │    Cavi 12V              │
+│  (angolo SX) │    (angolo DX, separati) │
+├─────────────────────────────────────────┤
+│         Woofer / midrange               │
+├─────────────────────────────────────────┤
+│  PSU Mean Well LRS-150-12               │
+│  (box inferiore con griglia ventilaz.)  │
+│  + fusibile + derivazione 230V da       │
+│    PowerCON dell'amplificatore          │
+└─────────────────────────────────────────┘
+[ BOTTOM ]
 
-  Neon logo:
-    ← [logo_left]  [ LOGO ]  [logo_right] →
-    ─────────── [front_frame] ───────────
+Cablaggio:
+- 230V prelevata da PowerCON IN/OUT dell'ampli
+- PSU in basso → 12V sale verso controller in alto
+- Cavi audio su un angolo, cavi 12V sull'angolo opposto
+- Cavi fissati e montati sotto fonoassorbente
+- Distanza controller ↔ crossover: ~40cm (minimo EMI)
+
+Neon logo:
+  ← [logo_left]  [ LOGO ]  [logo_right] →
+  ─────────── [front_frame] ───────────
 ```
 
 ### 13.6 API REST WLED (14 endpoint)

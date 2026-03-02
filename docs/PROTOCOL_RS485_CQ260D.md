@@ -333,7 +333,7 @@ protocollo **completamente separato** rispetto a RS-485:
 |-------------------|--------------------------|----------------------------------|
 | Mezzo fisico      | RS-485 half-duplex       | Wi-Fi 802.11 b/g/n               |
 | Protocollo        | Frame binario proprietario | HTTP JSON API + UDP 21324       |
-| Controller target | DSP CQ260D / PDA1001     | GLEDOPTO GL-C-015WL-D (ESP32)   |
+| Controller target | Modulo PDA1001 con DSP CQ260D integrato | GLEDOPTO GL-C-015WL-D (ESP32)   |
 | API firmware      | `rs485.h/cpp`            | `wled_client.h/cpp`              |
 | Terminazione      | 120Ω sull'ultimo device  | Non applicabile (Wi-Fi)          |
 

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSP Control – WLED Neon LED Preview</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #1a1a2e;
+      --panel:    #16213e;
+      --card:     #0f3460;
+      --accent:   #e94560;
+      --accent2:  #0055cc;
+      --text:     #e0e0e0;
+      --muted:    #7a8aaa;
+      --border:   rgba(255,255,255,0.1);
+      --online:   #4caf50;
+      --offline:  #f44336;
+      --radius:   8px;
+      --neon-color: #e94560;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif;
+           font-size: 14px; min-height: 100vh; }
+
+    /* ===== TOP BAR ===== */
+    .topbar { background: var(--panel); padding: 10px 20px; display: flex;
+              align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+    .topbar .logo { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+    .topbar .sub  { color: var(--muted); font-size: 12px; }
+    .topbar .badge { background: var(--accent); color: #fff; border-radius: 12px;
+                     padding: 2px 10px; font-size: 11px; margin-left: auto; }
+
+    /* ===== LAYOUT ===== */
+    .main { display: grid; grid-template-columns: 1fr 340px; gap: 16px; padding: 16px; }
+    @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+
+    /* ===== CARDS ===== */
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 16px; margin-bottom: 16px; }
+    .card h3 { font-size: 12px; text-transform: uppercase; color: var(--muted);
+               letter-spacing: 1px; margin-bottom: 12px; }
+
+    /* ===== BUTTONS ===== */
+    .btn { display: inline-flex; align-items: center; gap: 6px; border: none;
+           border-radius: var(--radius); padding: 8px 16px; font-size: 13px; font-weight: 600;
+           cursor: pointer; transition: filter .15s; }
+    .btn:hover { filter: brightness(1.15); }
+    .btn-accent  { background: var(--accent);  color: #fff; }
+    .btn-blue    { background: var(--accent2); color: #fff; }
+    .btn-dark    { background: var(--card);    color: var(--text); border: 1px solid var(--border); }
+    .btn-red     { background: #cc0000;        color: #fff; font-size: 14px; padding: 10px 20px; }
+    .btn-green   { background: #226622;        color: #fff; }
+    .btn-sm      { padding: 5px 10px; font-size: 12px; }
+    .btn-full    { width: 100%; justify-content: center; }
+
+    /* ===== SLIDERS ===== */
+    .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .slider-row label { min-width: 100px; color: var(--muted); font-size: 12px; }
+    .slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
+    .slider-row .val { min-width: 40px; text-align: right; font-size: 12px; color: var(--muted); }
+
+    /* ===== TOGGLE ===== */
+    .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #444; border-radius: 22px;
+                     cursor: pointer; transition: background .2s; }
+    .toggle-slider::before { content: ''; position: absolute; width: 16px; height: 16px;
+                              left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+                              transition: transform .2s; }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+    /* ===== STATUS DOTS ===== */
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-on  { background: var(--online);  box-shadow: 0 0 6px var(--online); }
+    .dot-off { background: var(--offline); }
+
+    /* ===== ROW UTILS ===== */
+    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .spacer { flex: 1; }
+
+    /* ===== ZONE TOGGLE ROW ===== */
+    .zone-row { display: flex; align-items: center; gap: 10px; padding: 8px 0;
+                border-bottom: 1px solid var(--border); }
+    .zone-row:last-child { border-bottom: none; }
+    .zone-name { flex: 1; font-size: 13px; }
+    .zone-ch { font-size: 11px; color: var(--muted); min-width: 40px; }
+    .zone-px  { font-size: 11px; color: var(--muted); min-width: 52px; text-align: right; }
+
+    /* ===== CABINET VISUALIZATION ===== */
+    .cabinets-wrap { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap;
+                     padding: 12px 0 24px; }
+
+    .cabinet-outer { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .cabinet-label { font-size: 12px; color: var(--muted); }
+
+    .cabinet {
+      position: relative;
+      width: 140px; height: 200px;
+      background: #1e1e2e;
+      border: 2px solid #333;
+      border-radius: 12px;
+      overflow: visible;
+    }
+
+    /* Neon glow borders – each zone is a CSS pseudo/element overlay */
+    .neon-left {
+      position: absolute; left: -6px; top: 24px; width: 10px; height: 130px;
+      border-radius: 5px;
+      background: var(--neon-color);
+      opacity: 0;
+      box-shadow: 0 0 8px 4px var(--neon-color), 0 0 20px 6px var(--neon-color);
+      transition: opacity .3s;
+    }
+    .neon-right {
+      position: absolute; right: -6px; top: 24px; width: 10px; height: 130px;
+      border-radius: 5px;
+      background: var(--neon-color);
+      opacity: 0;
+      box-shadow: 0 0 8px 4px var(--neon-color), 0 0 20px 6px var(--neon-color);
+      transition: opacity .3s;
+    }
+    .neon-frame {
+      position: absolute; left: 10px; bottom: -6px; width: 120px; height: 10px;
+      border-radius: 5px;
+      background: var(--neon-color);
+      opacity: 0;
+      box-shadow: 0 0 8px 4px var(--neon-color), 0 0 20px 6px var(--neon-color);
+      transition: opacity .3s;
+    }
+    .neon-spare {
+      position: absolute; left: 10px; top: -6px; width: 120px; height: 10px;
+      border-radius: 5px;
+      background: var(--neon-color);
+      opacity: 0;
+      box-shadow: 0 0 8px 4px var(--neon-color), 0 0 20px 6px var(--neon-color);
+      transition: opacity .3s;
+    }
+
+    .cab-logo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -55%);
+                font-size: 28px; opacity: 0.25; pointer-events: none; }
+    .cab-woofer { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+                  width: 80px; height: 80px; border-radius: 50%;
+                  border: 4px solid #333; background: #111;
+                  display: flex; align-items: center; justify-content: center;
+                  color: #444; font-size: 10px; }
+    .cab-tweeter { position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+                   width: 40px; height: 40px; border-radius: 50%;
+                   border: 3px solid #333; background: #111; }
+
+    /* active zones light up the cabinet border */
+    .cabinet.active-left  { border-left-color:   var(--neon-color); }
+    .cabinet.active-right { border-right-color:  var(--neon-color); }
+    .cabinet.active-frame { border-bottom-color: var(--neon-color); }
+    .cabinet.active-spare { border-top-color:    var(--neon-color); }
+
+    /* ===== CONTROLLER LIST ===== */
+    .ctrl-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+                 background: var(--card); border-radius: var(--radius); margin-bottom: 8px; }
+    .ctrl-info { flex: 1; }
+    .ctrl-name { font-size: 13px; font-weight: 600; }
+    .ctrl-detail { font-size: 11px; color: var(--muted); }
+
+    /* ===== EFFECTS GRID ===== */
+    .effect-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; }
+    .effect-btn { border: 2px solid var(--border); border-radius: var(--radius); padding: 7px 4px;
+                  font-size: 12px; text-align: center; cursor: pointer; background: var(--card);
+                  color: var(--text); transition: border-color .15s, background .15s; }
+    .effect-btn:hover, .effect-btn.sel { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="logo">🌈 WLED Neon LED</span>
+  <span class="sub">Controllo Strip Neon – DSP Control v2.1.0</span>
+  <span class="badge">● 192.168.4.1</span>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main">
+
+  <!-- LEFT COLUMN -->
+  <div>
+
+    <!-- CABINET PREVIEW -->
+    <div class="card">
+      <h3>Vista Frontale Casse</h3>
+      <div class="cabinets-wrap" id="cabinets-wrap">
+
+        <!-- Cabinet SX -->
+        <div class="cabinet-outer">
+          <div class="cabinet" id="cab-sx">
+            <div class="neon-left"  id="neon-sx-left"></div>
+            <div class="neon-right" id="neon-sx-right"></div>
+            <div class="neon-frame" id="neon-sx-frame"></div>
+            <div class="neon-spare" id="neon-sx-spare"></div>
+            <div class="cab-tweeter"></div>
+            <div class="cab-logo">🔊</div>
+            <div class="cab-woofer">W</div>
+          </div>
+          <div class="cabinet-label">Cabinet SX</div>
+        </div>
+
+        <!-- Cabinet DX -->
+        <div class="cabinet-outer">
+          <div class="cabinet" id="cab-dx">
+            <div class="neon-left"  id="neon-dx-left"></div>
+            <div class="neon-right" id="neon-dx-right"></div>
+            <div class="neon-frame" id="neon-dx-frame"></div>
+            <div class="neon-spare" id="neon-dx-spare"></div>
+            <div class="cab-tweeter"></div>
+            <div class="cab-logo">🔊</div>
+            <div class="cab-woofer">W</div>
+          </div>
+          <div class="cabinet-label">Cabinet DX</div>
+        </div>
+
+      </div>
+
+      <!-- Legend -->
+      <div class="row" style="gap:16px;font-size:11px;color:var(--muted);justify-content:center;">
+        <span>◀ Logo SX (CH1)</span>
+        <span>Logo DX (CH2) ▶</span>
+        <span>▼ Front Frame (CH3)</span>
+        <span>▲ Spare (CH4)</span>
+      </div>
+    </div>
+
+    <!-- MASTER CONTROLS -->
+    <div class="card">
+      <h3>Controlli Master</h3>
+      <div class="slider-row">
+        <label>Luminosità</label>
+        <input type="range" id="sl-bri" min="0" max="100" value="80"
+               oninput="onBrightness(this.value)">
+        <span class="val" id="v-bri">80%</span>
+      </div>
+      <div class="slider-row">
+        <label>Speed</label>
+        <input type="range" id="sl-speed" min="0" max="255" value="128"
+               oninput="document.getElementById('v-speed').textContent=this.value">
+        <span class="val" id="v-speed">128</span>
+      </div>
+      <div class="slider-row">
+        <label>Intensity</label>
+        <input type="range" id="sl-intens" min="0" max="255" value="128"
+               oninput="document.getElementById('v-intens').textContent=this.value">
+        <span class="val" id="v-intens">128</span>
+      </div>
+
+      <div class="row" style="margin-top:12px;gap:8px;">
+        <label style="font-size:12px;color:var(--muted);">Colore:</label>
+        <input type="color" id="cp-color" value="#e94560"
+               oninput="onColorChange(this.value)"
+               style="width:48px;height:32px;border:none;border-radius:6px;cursor:pointer;">
+
+        <label style="font-size:12px;color:var(--muted);margin-left:8px;">Effetto:</label>
+        <select id="sel-effect" style="background:var(--card);border:1px solid var(--border);
+                color:var(--text);padding:5px 8px;border-radius:6px;flex:1;"
+                onchange="onEffectChange(this.value)">
+          <option value="0">Solid</option>
+          <option value="1">Blink</option>
+          <option value="9">Rainbow</option>
+          <option value="65">Chase</option>
+          <option value="61">Breathe</option>
+          <option value="45">Fire</option>
+          <option value="28">Pulse</option>
+          <option value="38">Colorloop</option>
+          <option value="66">Chase Rainbow</option>
+          <option value="2">Strobe</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- EFFECTS QUICK GRID -->
+    <div class="card">
+      <h3>Effetti Rapidi</h3>
+      <div class="effect-grid">
+        <div class="effect-btn sel" onclick="selectEffect(this,'0')">Solid</div>
+        <div class="effect-btn" onclick="selectEffect(this,'9')">Rainbow</div>
+        <div class="effect-btn" onclick="selectEffect(this,'65')">Chase</div>
+        <div class="effect-btn" onclick="selectEffect(this,'61')">Breathe</div>
+        <div class="effect-btn" onclick="selectEffect(this,'45')">🔥 Fire</div>
+        <div class="effect-btn" onclick="selectEffect(this,'28')">Pulse</div>
+        <div class="effect-btn" onclick="selectEffect(this,'38')">Colorloop</div>
+        <div class="effect-btn" onclick="selectEffect(this,'2')">Strobe</div>
+        <div class="effect-btn" onclick="selectEffect(this,'66')">Chase RGB</div>
+      </div>
+    </div>
+
+  </div><!-- /LEFT -->
+
+  <!-- RIGHT COLUMN -->
+  <div>
+
+    <!-- ZONE CONTROLS -->
+    <div class="card">
+      <h3>Zone (4CH)</h3>
+
+      <div class="zone-row">
+        <div class="zone-name">Logo SX <span style="color:var(--muted);font-size:11px;">(CH1)</span></div>
+        <div class="zone-px" id="px-logo-sx">80 px</div>
+        <label class="toggle">
+          <input type="checkbox" id="tog-logo-sx" checked onchange="onZoneToggle()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="zone-row">
+        <div class="zone-name">Logo DX <span style="color:var(--muted);font-size:11px;">(CH2)</span></div>
+        <div class="zone-px" id="px-logo-dx">80 px</div>
+        <label class="toggle">
+          <input type="checkbox" id="tog-logo-dx" checked onchange="onZoneToggle()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="zone-row">
+        <div class="zone-name">Front Frame <span style="color:var(--muted);font-size:11px;">(CH3)</span></div>
+        <div class="zone-px" id="px-front-frame">96 px</div>
+        <label class="toggle">
+          <input type="checkbox" id="tog-front-frame" checked onchange="onZoneToggle()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="zone-row">
+        <div class="zone-name">Spare <span style="color:var(--muted);font-size:11px;">(CH4)</span></div>
+        <div class="zone-px" id="px-spare">0 px</div>
+        <label class="toggle">
+          <input type="checkbox" id="tog-spare" onchange="onZoneToggle()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--muted);">Mirror logo SX↔DX:</label>
+        <label class="toggle">
+          <input type="checkbox" id="tog-mirror" onchange="onMirrorToggle()">
+          <span class="toggle-slider"></span>
+        </label>
+        <label style="font-size:12px;color:var(--muted);margin-left:8px;">Reverse:</label>
+        <label class="toggle">
+          <input type="checkbox" id="tog-reverse" onchange="onReverseToggle()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- SYNC & BLACKOUT -->
+    <div class="card">
+      <h3>Modalità Sincronizzazione</h3>
+      <div class="row" style="gap:8px;margin-bottom:10px;">
+        <button class="btn btn-blue btn-full" onclick="doSync()">🔄 SYNC ALL</button>
+      </div>
+      <div class="row" style="gap:8px;margin-bottom:10px;">
+        <button class="btn btn-dark btn-full" onclick="doIndependent()">⚡ Modalità Independent</button>
+      </div>
+      <div class="row" style="gap:8px;margin-bottom:10px;">
+        <button class="btn btn-green btn-full" onclick="doDiscover()">📡 DISCOVER</button>
+      </div>
+      <button class="btn btn-red btn-full" onclick="doBlackout()">⚠ BLACKOUT</button>
+    </div>
+
+    <!-- CONTROLLER LIST -->
+    <div class="card">
+      <h3>Controller Connessi</h3>
+
+      <div class="ctrl-item">
+        <span class="dot dot-on"></span>
+        <div class="ctrl-info">
+          <div class="ctrl-name">Cabinet_SX</div>
+          <div class="ctrl-detail">192.168.4.10 · 4CH · 256 px · GLEDOPTO</div>
+        </div>
+        <span style="font-size:11px;color:var(--online);">Online</span>
+      </div>
+
+      <div class="ctrl-item">
+        <span class="dot dot-on"></span>
+        <div class="ctrl-info">
+          <div class="ctrl-name">Cabinet_DX</div>
+          <div class="ctrl-detail">192.168.4.11 · 4CH · 256 px · GLEDOPTO</div>
+        </div>
+        <span style="font-size:11px;color:var(--online);">Online</span>
+      </div>
+
+      <div id="discovered-controllers"></div>
+    </div>
+
+  </div><!-- /RIGHT -->
+
+</div><!-- /MAIN -->
+
+<script>
+  // ======= State =======
+  let neonColor = '#e94560';
+  let brightness = 80;
+  let zones = { logoSx: true, logoDx: true, frontFrame: true, spare: false };
+  let mirror = false;
+  let selectedEffectBtn = null;
+
+  // ======= Color / Brightness =======
+  function onColorChange(hex) {
+    neonColor = hex;
+    document.documentElement.style.setProperty('--neon-color', hex);
+    updateCabinets();
+  }
+
+  function onBrightness(val) {
+    brightness = parseInt(val);
+    document.getElementById('v-bri').textContent = val + '%';
+    updateCabinets();
+  }
+
+  // ======= Zone Toggle =======
+  function onZoneToggle() {
+    zones.logoSx     = document.getElementById('tog-logo-sx').checked;
+    zones.frontFrame = document.getElementById('tog-front-frame').checked;
+    zones.spare      = document.getElementById('tog-spare').checked;
+    // Keep logo_dx in sync with logo_sx when mirror mode is active
+    if (mirror) {
+      document.getElementById('tog-logo-dx').checked = zones.logoSx;
+      zones.logoDx = zones.logoSx;
+    } else {
+      zones.logoDx = document.getElementById('tog-logo-dx').checked;
+    }
+    updateCabinets();
+  }
+
+  function onMirrorToggle() {
+    mirror = document.getElementById('tog-mirror').checked;
+    if (mirror) {
+      // Mirror: force both logos on/off together
+      document.getElementById('tog-logo-dx').checked = zones.logoSx;
+      zones.logoDx = zones.logoSx;
+    }
+    updateCabinets();
+  }
+
+  function onReverseToggle() {
+    updateCabinets();
+  }
+
+  // ======= Effect =======
+  function onEffectChange(val) {
+    // sync quick grid selection
+    document.querySelectorAll('.effect-btn').forEach(b => b.classList.remove('sel'));
+  }
+
+  function selectEffect(btn, val) {
+    document.querySelectorAll('.effect-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    document.getElementById('sel-effect').value = val;
+  }
+
+  // ======= Cabinet visual update =======
+  function alpha(active) { return active ? (brightness / 100).toFixed(2) : 0; }
+
+  function updateCabinets() {
+    ['sx', 'dx'].forEach(side => {
+      document.getElementById('neon-' + side + '-left').style.opacity  = alpha(zones.logoSx);
+      document.getElementById('neon-' + side + '-right').style.opacity = alpha(zones.logoDx);
+      document.getElementById('neon-' + side + '-frame').style.opacity = alpha(zones.frontFrame);
+      document.getElementById('neon-' + side + '-spare').style.opacity = alpha(zones.spare);
+
+      const cab = document.getElementById('cab-' + side);
+      cab.classList.toggle('active-left',  zones.logoSx);
+      cab.classList.toggle('active-right', zones.logoDx);
+      cab.classList.toggle('active-frame', zones.frontFrame);
+      cab.classList.toggle('active-spare', zones.spare);
+    });
+  }
+
+  // ======= Actions (mock) =======
+  function doSync() {
+    showToast('🔄 SYNC inviato a tutti i controller');
+  }
+
+  function doIndependent() {
+    showToast('⚡ Modalità Independent attivata');
+  }
+
+  function doBlackout() {
+    brightness = 0;
+    document.getElementById('sl-bri').value = 0;
+    document.getElementById('v-bri').textContent = '0%';
+    updateCabinets();
+    showToast('⚠ BLACKOUT inviato a tutti i controller', '#cc0000');
+  }
+
+  function doDiscover() {
+    showToast('📡 Ricerca controller in corso...');
+    setTimeout(() => showToast('✅ 2 controller trovati'), 2000);
+  }
+
+  // ======= Toast notification =======
+  function showToast(msg, bg) {
+    let t = document.getElementById('toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'toast';
+      t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
+        'padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;' +
+        'color:#fff;z-index:9999;transition:opacity .4s;';
+      document.body.appendChild(t);
+    }
+    t.style.background = bg || '#226622';
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+  }
+
+  // ======= Init =======
+  updateCabinets();
+</script>
+</body>
+</html>
