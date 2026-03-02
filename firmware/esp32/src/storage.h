@@ -52,3 +52,8 @@ void storage_save_wled_controllers();
 void storage_load_wled_controllers();
 void storage_save_wled_scenes();
 void storage_load_wled_scenes();
+
+// Configurazione wireless (abilitato, MAC peer, modalità audio)
+#include "wireless_tx.h"
+void storage_save_wireless_config(const WirelessConfig& cfg);
+bool storage_load_wireless_config(WirelessConfig& cfg);

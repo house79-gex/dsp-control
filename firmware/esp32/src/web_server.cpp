@@ -10,6 +10,7 @@
 #include "autotune.h"
 #include "usb_storage.h"
 #include "wled_client.h"
+#include "wireless_tx.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -438,7 +439,7 @@ static String buildDevicesJson() {
 
 // ======= Setup WebServer =======
 void web_server_init() {
-    WiFi.mode(WIFI_AP);
+    WiFi.mode(WIFI_AP_STA);  // AP_STA per supportare ESP-NOW + AP contemporaneamente
     WiFi.softAP(WIFI_SSID, WIFI_PASS);
     Serial.printf("[WIFI] AP avviato: SSID=%s IP=%s\n", WIFI_SSID, WiFi.softAPIP().toString().c_str());
 
@@ -1229,6 +1230,89 @@ void web_server_init() {
         String out; serializeJson(d, out);
         req->send(200, "application/json", out);
     });
+
+    // ——— Wireless 2CH ———
+    s_server.on("/api/wireless/status", HTTP_GET, [](AsyncWebServerRequest* req) {
+        StaticJsonDocument<512> d;
+        d["enabled"] = wireless_tx_is_enabled();
+        d["mode"]    = (int)wireless_tx_get_audio_mode();
+        JsonObject ch1 = d.createNestedObject("ch1");
+        const WirelessChannelStats* s1 = wireless_tx_get_stats(1);
+        if (s1) {
+            ch1["online"]       = s1->online;
+            ch1["loss_rate"]    = s1->lossRate;
+            ch1["packets_sent"] = s1->packetsSent;
+            ch1["rssi"]         = s1->rssi;
+        }
+        JsonObject ch2 = d.createNestedObject("ch2");
+        const WirelessChannelStats* s2 = wireless_tx_get_stats(2);
+        if (s2) {
+            ch2["online"]       = s2->online;
+            ch2["loss_rate"]    = s2->lossRate;
+            ch2["packets_sent"] = s2->packetsSent;
+            ch2["rssi"]         = s2->rssi;
+        }
+        String out; serializeJson(d, out);
+        req->send(200, "application/json", out);
+    });
+
+    s_server.on("/api/wireless/mode", HTTP_GET, [](AsyncWebServerRequest* req) {
+        StaticJsonDocument<128> d;
+        int m = (int)wireless_tx_get_audio_mode();
+        const char* names[] = { "STEREO_SPLIT", "DUAL_MONO", "MAIN_SUB" };
+        d["mode"]      = m;
+        d["mode_name"] = (m >= 0 && m <= 2) ? names[m] : "UNKNOWN";
+        String out; serializeJson(d, out);
+        req->send(200, "application/json", out);
+    });
+
+    s_server.on("/api/wireless/mode", HTTP_POST, JSON_BODY_HANDLER({
+        if (doc.containsKey("mode")) {
+            int m = doc["mode"] | 0;
+            wireless_tx_set_audio_mode((WirelessAudioMode)m);
+        } else if (doc.containsKey("mode_name")) {
+            const char* name = doc["mode_name"] | "STEREO_SPLIT";
+            WirelessAudioMode m = WirelessAudioMode::STEREO_SPLIT;
+            if (strcmp(name, "DUAL_MONO") == 0) m = WirelessAudioMode::DUAL_MONO;
+            else if (strcmp(name, "MAIN_SUB") == 0) m = WirelessAudioMode::MAIN_SUB;
+            wireless_tx_set_audio_mode(m);
+        }
+        WirelessConfig cfg; wireless_tx_get_config(cfg); storage_save_wireless_config(cfg);
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
+
+    s_server.on("/api/wireless/peer1", HTTP_POST, JSON_BODY_HANDLER({
+        if (doc.containsKey("mac")) {
+            uint8_t mac[6] = {};
+            JsonArray arr = doc["mac"].as<JsonArray>();
+            for (int i = 0; i < 6 && i < (int)arr.size(); i++) mac[i] = arr[i];
+            wireless_tx_set_peer_mac(1, mac);
+            WirelessConfig cfg; wireless_tx_get_config(cfg); storage_save_wireless_config(cfg);
+            req->send(200, "application/json", "{\"ok\":true}");
+        } else {
+            req->send(400, "application/json", "{\"error\":\"mac required\"}");
+        }
+    }));
+
+    s_server.on("/api/wireless/peer2", HTTP_POST, JSON_BODY_HANDLER({
+        if (doc.containsKey("mac")) {
+            uint8_t mac[6] = {};
+            JsonArray arr = doc["mac"].as<JsonArray>();
+            for (int i = 0; i < 6 && i < (int)arr.size(); i++) mac[i] = arr[i];
+            wireless_tx_set_peer_mac(2, mac);
+            WirelessConfig cfg; wireless_tx_get_config(cfg); storage_save_wireless_config(cfg);
+            req->send(200, "application/json", "{\"ok\":true}");
+        } else {
+            req->send(400, "application/json", "{\"error\":\"mac required\"}");
+        }
+    }));
+
+    s_server.on("/api/wireless/enable", HTTP_POST, JSON_BODY_HANDLER({
+        bool en = doc["enabled"] | true;
+        wireless_tx_enable(en);
+        WirelessConfig cfg; wireless_tx_get_config(cfg); storage_save_wireless_config(cfg);
+        req->send(200, "application/json", "{\"ok\":true}");
+    }));
 
     s_server.begin();
     Serial.println("[WEB] Server HTTP avviato su porta 80 con tutti gli endpoint");
