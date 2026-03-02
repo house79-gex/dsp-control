@@ -9,12 +9,6 @@ static Adafruit_NeoPixel s_ringBal(LED_RING_COUNT, LED_RING_BAL_PIN, NEO_GRB + N
 static int s_volume  = 80;   // 0-100
 static int s_balance = 0;    // -50..+50
 
-// Stato encoder (per decodifica incrementale)
-static volatile int s_encVolDelta  = 0;
-static volatile int s_encBalDelta  = 0;
-static int8_t s_prevVolAB = 0;
-static int8_t s_prevBalAB = 0;
-
 // Effetto pulse
 static bool     s_pulseActive = false;
 static uint8_t  s_pulseR = 0, s_pulseG = 0, s_pulseB = 0;
@@ -121,56 +115,85 @@ void led_ring_update() {
 
 // ======= Encoder rotativi =======
 
-void encoder_init() {
-    pinMode(ENCODER_VOL_A, INPUT_PULLUP);
-    pinMode(ENCODER_VOL_B, INPUT_PULLUP);
-    pinMode(ENCODER_BAL_A, INPUT_PULLUP);
-    pinMode(ENCODER_BAL_B, INPUT_PULLUP);
-    s_prevVolAB = (digitalRead(ENCODER_VOL_A) << 1) | digitalRead(ENCODER_VOL_B);
-    s_prevBalAB = (digitalRead(ENCODER_BAL_A) << 1) | digitalRead(ENCODER_BAL_B);
-    Serial.println("[ENCODER] Encoder rotativi inizializzati");
-}
+// Stato ISR encoder (IRAM per accesso rapido da interrupt)
+static volatile int32_t s_encVolISRDelta = 0;
+static volatile int32_t s_encBalISRDelta = 0;
+static volatile uint8_t s_encVolLastState = 0;
+static volatile uint8_t s_encBalLastState = 0;
 
-// Tabella di transizione per decodifica encoder quadraturale
-static const int8_t ENC_TABLE[16] = {
+// Tabella di transizione per decodifica encoder quadraturale (DRAM per accesso da ISR)
+static const DRAM_ATTR int8_t ENC_TABLE[16] = {
     0, -1,  1,  0,
     1,  0,  0, -1,
    -1,  0,  0,  1,
     0,  1, -1,  0
 };
 
+void IRAM_ATTR encoder_vol_isr() {
+    uint8_t clk = digitalRead(ENCODER_VOL_A);
+    uint8_t dt  = digitalRead(ENCODER_VOL_B);
+    uint8_t state = (clk << 1) | dt;
+    uint8_t idx   = (s_encVolLastState << 2) | state;
+    s_encVolISRDelta += ENC_TABLE[idx & 0x0F];
+    s_encVolLastState = state;
+}
+
+void IRAM_ATTR encoder_bal_isr() {
+    uint8_t clk = digitalRead(ENCODER_BAL_A);
+    uint8_t dt  = digitalRead(ENCODER_BAL_B);
+    uint8_t state = (clk << 1) | dt;
+    uint8_t idx   = (s_encBalLastState << 2) | state;
+    s_encBalISRDelta += ENC_TABLE[idx & 0x0F];
+    s_encBalLastState = state;
+}
+
+void encoder_init() {
+    pinMode(ENCODER_VOL_A, INPUT_PULLUP);
+    pinMode(ENCODER_VOL_B, INPUT_PULLUP);
+    pinMode(ENCODER_BAL_A, INPUT_PULLUP);
+    pinMode(ENCODER_BAL_B, INPUT_PULLUP);
+
+    // Stato iniziale encoder
+    s_encVolLastState = (uint8_t)((digitalRead(ENCODER_VOL_A) << 1) | digitalRead(ENCODER_VOL_B));
+    s_encBalLastState = (uint8_t)((digitalRead(ENCODER_BAL_A) << 1) | digitalRead(ENCODER_BAL_B));
+
+    // Attacca interrupt su entrambi i fronti di CLK e DT
+    attachInterrupt(digitalPinToInterrupt(ENCODER_VOL_A), encoder_vol_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ENCODER_VOL_B), encoder_vol_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ENCODER_BAL_A), encoder_bal_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ENCODER_BAL_B), encoder_bal_isr, CHANGE);
+
+    Serial.println("[ENCODER] Encoder rotativi inizializzati (interrupt-based)");
+}
+
 void encoder_tick() {
-    // Encoder volume
-    int8_t volAB = (digitalRead(ENCODER_VOL_A) << 1) | digitalRead(ENCODER_VOL_B);
-    int8_t volIdx = (s_prevVolAB << 2) | volAB;
-    s_encVolDelta += ENC_TABLE[volIdx & 0x0F];
-    s_prevVolAB = volAB;
+    // Leggi delta ISR atomicamente e azzera
+    noInterrupts();
+    int32_t volDelta = s_encVolISRDelta;
+    int32_t balDelta = s_encBalISRDelta;
+    s_encVolISRDelta = 0;
+    s_encBalISRDelta = 0;
+    interrupts();
 
-    // Encoder balance
-    int8_t balAB = (digitalRead(ENCODER_BAL_A) << 1) | digitalRead(ENCODER_BAL_B);
-    int8_t balIdx = (s_prevBalAB << 2) | balAB;
-    s_encBalDelta += ENC_TABLE[balIdx & 0x0F];
-    s_prevBalAB = balAB;
-
-    // Applica delta (ogni 4 passi = 1 click)
-    if (s_encVolDelta >= 4) {
-        s_volume = constrain(s_volume + 1, 0, 100);
-        s_encVolDelta -= 4;
+    // Applica delta volume (ogni 4 passi quadraturali = 1 click fisico)
+    if (abs(volDelta) >= 4) {
+        int steps = (int)(volDelta / 4);
+        s_volume = constrain(s_volume + steps, 0, 100);
         led_ring_set_volume(s_volume);
-    } else if (s_encVolDelta <= -4) {
-        s_volume = constrain(s_volume - 1, 0, 100);
-        s_encVolDelta += 4;
-        led_ring_set_volume(s_volume);
+        // Ri-accumula i passi rimanenti (modulo 4)
+        noInterrupts();
+        s_encVolISRDelta += (volDelta % 4);
+        interrupts();
     }
 
-    if (s_encBalDelta >= 4) {
-        s_balance = constrain(s_balance + 1, -50, 50);
-        s_encBalDelta -= 4;
+    // Applica delta balance
+    if (abs(balDelta) >= 4) {
+        int steps = (int)(balDelta / 4);
+        s_balance = constrain(s_balance + steps, -50, 50);
         led_ring_set_balance(s_balance);
-    } else if (s_encBalDelta <= -4) {
-        s_balance = constrain(s_balance - 1, -50, 50);
-        s_encBalDelta += 4;
-        led_ring_set_balance(s_balance);
+        noInterrupts();
+        s_encBalISRDelta += (balDelta % 4);
+        interrupts();
     }
 }
 
