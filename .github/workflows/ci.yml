@@ -70,7 +70,9 @@ jobs:
 
       - name: Build modulo_rx
         working-directory: modulo_rx
-        run: pio run -e esp32s3
+        run: |
+          pio pkg install
+          pio run -e esp32s3
 
   # ——— Test Flutter ———
   test-flutter:
