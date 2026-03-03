@@ -10,6 +10,8 @@
 #define I2S_BUFFER_SIZE 256
 
 static float s_outputVolumePercent = 80.0f;  // Volume default 80%
+static uint32_t s_underruns = 0;             // Contatore buffer underrun
+static uint32_t s_framesPlayed = 0;          // Frame audio riprodotti
 
 // ——— Helper: scrittura registro ES8388 via I2C ———
 static void es8388_write_reg(uint8_t reg, uint8_t value) {
@@ -21,7 +23,7 @@ static void es8388_write_reg(uint8_t reg, uint8_t value) {
     }
 }
 
-void audio_rx_init() {
+bool audio_rx_init() {
     Serial.println("[RX] Inizializzazione ES8388 DAC...");
 
     // Inizializza I2C per controllo codec.
@@ -64,16 +66,17 @@ void audio_rx_init() {
     esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
     if (err != ESP_OK) {
         Serial.printf("[RX] Errore init I2S: %d\n", err);
-        return;
+        return false;
     }
     i2s_set_pin(I2S_PORT, &pin_config);
 
     Serial.printf("[RX] ES8388 DAC configurato: %d Hz, %d bit, volume %d%%\n",
                   AUDIO_SAMPLE_RATE, AUDIO_BIT_DEPTH, (int)s_outputVolumePercent);
+    return true;
 }
 
 // Riproduce campioni audio ricevuti via ESP-NOW
-void audio_rx_play_samples(const int16_t* samples, uint8_t numSamples, bool isStereo) {
+void audio_rx_push_samples(const int16_t* samples, uint8_t numSamples, uint8_t audioMode) {
     if (numSamples == 0 || !samples) return;
 
     // Buffer stereo interleaved
@@ -85,6 +88,7 @@ void audio_rx_play_samples(const int16_t* samples, uint8_t numSamples, bool isSt
 
     // Applica volume (scalatura lineare)
     float vol = s_outputVolumePercent / 100.0f;
+    bool isStereo = (audioMode == 1);  // 0=Mono, 1=Stereo, 2=Sub
     for (uint8_t i = 0; i < outSamples; i++) {
         int16_t s = isStereo ? samples[i * 2] : samples[i];
         int16_t sR = isStereo ? samples[i * 2 + 1] : samples[i];
@@ -95,8 +99,31 @@ void audio_rx_play_samples(const int16_t* samples, uint8_t numSamples, bool isSt
     size_t bytesWritten = 0;
     i2s_write(I2S_PORT, playBuf, outSamples * 2 * sizeof(int16_t),
               &bytesWritten, pdMS_TO_TICKS(10));
+    if (bytesWritten > 0) {
+        s_framesPlayed++;
+    }
+    if (bytesWritten == 0) {
+        s_underruns++;
+    }
 }
 
 void audio_rx_set_volume(float volumePercent) {
     s_outputVolumePercent = constrain(volumePercent, 0.0f, 100.0f);
+}
+
+void audio_rx_task(void* param) {
+    (void)param;
+    // Task playback audio – non necessario se I2S gestisce buffer autonomamente via DMA
+    // Stub per compatibilità con main.cpp che registra il task
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+uint32_t audio_rx_get_underruns() {
+    return s_underruns;
+}
+
+uint32_t audio_rx_get_frames_played() {
+    return s_framesPlayed;
 }
