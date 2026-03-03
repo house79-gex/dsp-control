@@ -523,3 +523,118 @@ bool storage_load_audio_config(float* inputGainDb, uint32_t* sampleRate, uint8_t
                   cfg.inputGainDb, cfg.sampleRate, cfg.bitDepth);
     return true;
 }
+
+// ======= Persistenza Venue Map =======
+
+void storage_save_venue_map(const VenueMap& map) {
+    DynamicJsonDocument doc(8192);
+    doc["roomWidth"] = map.roomWidth;
+    doc["roomDepth"] = map.roomDepth;
+
+    JsonArray spkArr = doc.createNestedArray("speakers");
+    for (const auto& sp : map.speakers) {
+        JsonObject obj = spkArr.createNestedObject();
+        obj["id"]    = sp.id;
+        obj["name"]  = sp.name;
+        obj["x"]     = sp.x;
+        obj["y"]     = sp.y;
+        obj["angle"] = sp.angle;
+    }
+
+    JsonArray ltArr = doc.createNestedArray("lights");
+    for (const auto& lt : map.lights) {
+        JsonObject obj = ltArr.createNestedObject();
+        obj["id"]     = lt.id;
+        obj["name"]   = lt.name;
+        obj["x"]      = lt.x;
+        obj["y"]      = lt.y;
+        obj["height"] = lt.height;
+        obj["angle"]  = lt.angle;
+    }
+
+    String buf;
+    serializeJson(doc, buf);
+    s_prefs.putString("venue_map", buf.c_str());
+    Serial.printf("[STORAGE] Venue map salvata: %d speaker, %d luci (%.1fx%.1f m)\n",
+                  (int)map.speakers.size(), (int)map.lights.size(),
+                  map.roomWidth, map.roomDepth);
+}
+
+VenueMap storage_load_venue_map() {
+    VenueMap map = {};
+    String json = s_prefs.getString("venue_map", "{}");
+    if (json.isEmpty() || json == "{}") {
+        Serial.println("[STORAGE] Nessuna venue map salvata");
+        return map;
+    }
+
+    DynamicJsonDocument doc(8192);
+    if (deserializeJson(doc, json)) {
+        Serial.println("[STORAGE] Errore parsing venue map");
+        return map;
+    }
+
+    map.roomWidth = doc["roomWidth"] | 0.0f;
+    map.roomDepth = doc["roomDepth"] | 0.0f;
+
+    for (JsonObject obj : doc["speakers"].as<JsonArray>()) {
+        SpeakerPosition sp = {};
+        sp.id    = obj["id"]    | 0;
+        sp.x     = obj["x"]     | 0.0f;
+        sp.y     = obj["y"]     | 0.0f;
+        sp.angle = obj["angle"] | 0.0f;
+        strncpy(sp.name, obj["name"] | "", sizeof(sp.name) - 1);
+        map.speakers.push_back(sp);
+    }
+
+    for (JsonObject obj : doc["lights"].as<JsonArray>()) {
+        LightPosition lt = {};
+        lt.id     = obj["id"]     | 0;
+        lt.x      = obj["x"]      | 0.0f;
+        lt.y      = obj["y"]      | 0.0f;
+        lt.height = obj["height"] | 0.0f;
+        lt.angle  = obj["angle"]  | 0.0f;
+        strncpy(lt.name, obj["name"] | "", sizeof(lt.name) - 1);
+        map.lights.push_back(lt);
+    }
+
+    Serial.printf("[STORAGE] Venue map caricata: %d speaker, %d luci\n",
+                  (int)map.speakers.size(), (int)map.lights.size());
+    return map;
+}
+
+// ======= Persistenza Configurazione Wireless TX =======
+
+void storage_save_wireless_config(const WirelessConfig& cfg) {
+    DynamicJsonDocument doc(512);
+    doc["enabled"]  = cfg.enabled;
+    doc["mode"]     = (uint8_t)cfg.mode;
+    JsonArray mac1 = doc.createNestedArray("peer1Mac");
+    JsonArray mac2 = doc.createNestedArray("peer2Mac");
+    for (int i = 0; i < 6; i++) { mac1.add(cfg.peer1Mac[i]); mac2.add(cfg.peer2Mac[i]); }
+    String buf;
+    serializeJson(doc, buf);
+    s_prefs.putString("wireless_cfg", buf.c_str());
+    Serial.println("[STORAGE] Configurazione wireless salvata");
+}
+
+void storage_load_wireless_config(WirelessConfig& cfg) {
+    memset(&cfg, 0, sizeof(WirelessConfig));
+    String json = s_prefs.getString("wireless_cfg", "{}");
+    if (json.isEmpty() || json == "{}") {
+        Serial.println("[STORAGE] Nessuna configurazione wireless salvata, uso default");
+        return;
+    }
+    DynamicJsonDocument doc(512);
+    if (deserializeJson(doc, json)) {
+        Serial.println("[STORAGE] Errore parsing wireless config");
+        return;
+    }
+    cfg.enabled = doc["enabled"] | false;
+    cfg.mode    = (WirelessAudioMode)(uint8_t)(doc["mode"] | 0);
+    JsonArray mac1 = doc["peer1Mac"].as<JsonArray>();
+    JsonArray mac2 = doc["peer2Mac"].as<JsonArray>();
+    for (int i = 0; i < 6 && i < (int)mac1.size(); i++) cfg.peer1Mac[i] = mac1[i] | 0;
+    for (int i = 0; i < 6 && i < (int)mac2.size(); i++) cfg.peer2Mac[i] = mac2[i] | 0;
+    Serial.println("[STORAGE] Configurazione wireless caricata");
+}

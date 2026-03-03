@@ -1,0 +1,10 @@
+      - name: Build modulo_rx
+        run: |
+          if [ -d "modulo_rx" ]; then
+            cd modulo_rx
+            pio pkg install
+            pio run -e esp32s3
+          else
+            echo "⚠️  modulo_rx directory not found - skipping build (expected on main branch)"
+            exit 0
+          fi

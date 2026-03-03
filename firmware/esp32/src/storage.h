@@ -53,6 +53,11 @@ void storage_load_wled_controllers();
 void storage_save_wled_scenes();
 void storage_load_wled_scenes();
 
+// Configurazione wireless TX
+#include "wireless_tx.h"
+void storage_save_wireless_config(const WirelessConfig& cfg);
+void storage_load_wireless_config(WirelessConfig& cfg);
+
 // Configurazione audio (sample rate, bit depth, input gain ADC)
 struct AudioConfig {
     float    inputGainDb;  // Guadagno ADC ES8388 (-96..+24 dB)
@@ -61,3 +66,28 @@ struct AudioConfig {
 };
 bool storage_save_audio_config(float inputGainDb, uint32_t sampleRate, uint8_t bitDepth);
 bool storage_load_audio_config(float* inputGainDb, uint32_t* sampleRate, uint8_t* bitDepth);
+
+// Venue Map (mappa sala con posizioni speaker/luci)
+struct SpeakerPosition {
+    uint8_t id;
+    char    name[32];
+    float   x;       // posizione X in metri dalla parete sinistra
+    float   y;       // posizione Y in metri dalla parete di fondo
+    float   angle;   // angolo puntamento in gradi (0=fronte, 90=destra)
+};
+struct LightPosition {
+    uint8_t id;
+    char    name[32];
+    float   x;
+    float   y;
+    float   height;  // altezza dal suolo (m)
+    float   angle;
+};
+struct VenueMap {
+    float roomWidth;   // larghezza sala in metri
+    float roomDepth;   // profondità sala in metri
+    std::vector<SpeakerPosition> speakers;
+    std::vector<LightPosition>   lights;
+};
+void storage_save_venue_map(const VenueMap& map);
+VenueMap storage_load_venue_map();

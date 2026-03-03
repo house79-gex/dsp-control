@@ -1,24 +1,28 @@
-#pragma once
+// ======= GPIO PINS =======
+// RS485 (controllo luci/mixer)
+#define RS485_RX_PIN     18
+#define RS485_TX_PIN     19
+#define RS485_DE_PIN     21  // Driver Enable (trasmissione)
 
-// ======= CONFIGURAZIONE MODULO RX =======
-// Ricevitore wireless audio (ESP-NOW) → ES8388 DAC → XLR Out
+// DMX512 output
+#define DMX_TX_PIN       22
+#define DMX_DE_PIN       23  // Driver Enable
 
-// I2S - ES8388 DAC
-#define I2S_SCK      15
-#define I2S_WS       16
-#define I2S_SD_OUT   17
+// ======= WIRELESS =======
+#define WIRELESS_TIMEOUT_MS  5000  // Timeout offline dopo 5 secondi senza pacchetti
 
-// ES8388 I2C
-#define ES8388_I2C_ADDR  0x10
+// ======= AUDIO CONFIG =======
+// ES8388 DAC I2C
+#define ES8388_I2C_ADDR  0x10  // Indirizzo I2C ES8388 standard
 
-// WiFi AP del master (per pairing)
-#define MASTER_SSID  "SISTEMA_AUDIO_01"
+// I2S GPIO pins (ESP32-S3) – TODO: verificare pin GPIO hardware
+#define I2S_SCK      5   // Bit Clock (SCK/BCK)
+#define I2S_WS       25  // Word Select (WS/LRCK)
+#define I2S_SD_OUT   26  // Serial Data Out (SDOUT)
 
-// ======= CONFIGURAZIONE AUDIO =======
-// Deve corrispondere al master TX (match SC LIVE 4)
-#define AUDIO_SAMPLE_RATE                 44100  // Hz – match master TX e SC LIVE 4
-#define AUDIO_BIT_DEPTH                   16     // bit – DAC output
-#define AUDIO_CHANNELS                    2      // Stereo
+// Audio parameters
+#define AUDIO_SAMPLE_RATE  44100  // 44.1 kHz (match SC LIVE 4)
+#define AUDIO_BIT_DEPTH    16     // 16-bit per sample
 
-// Frame audio: 44 campioni per frame @ 44.1 kHz (≈1 ms per frame)
-#define WIRELESS_AUDIO_SAMPLES_PER_FRAME  44
+// Wireless audio frame size
+#define WIRELESS_AUDIO_SAMPLES_PER_FRAME  64  // Campioni per frame wireless
