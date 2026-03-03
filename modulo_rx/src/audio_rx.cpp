@@ -10,6 +10,8 @@
 #define I2S_BUFFER_SIZE 256
 
 static float s_outputVolumePercent = 80.0f;  // Volume default 80%
+static uint32_t s_underruns = 0;
+static uint32_t s_framesPlayed = 0;
 
 // ——— Helper: scrittura registro ES8388 via I2C ———
 static void es8388_write_reg(uint8_t reg, uint8_t value) {
@@ -73,8 +75,10 @@ void audio_rx_init() {
 }
 
 // Riproduce campioni audio ricevuti via ESP-NOW
-void audio_rx_play_samples(const int16_t* samples, uint8_t numSamples, bool isStereo) {
+void audio_rx_push_samples(const int16_t* samples, uint8_t numSamples, uint8_t audioMode) {
     if (numSamples == 0 || !samples) return;
+
+    bool isStereo = (audioMode == 1);  // 0=Mono, 1=Stereo, 2=Sub
 
     // Buffer stereo interleaved
     static int16_t playBuf[WIRELESS_AUDIO_SAMPLES_PER_FRAME * 2];
@@ -95,8 +99,26 @@ void audio_rx_play_samples(const int16_t* samples, uint8_t numSamples, bool isSt
     size_t bytesWritten = 0;
     i2s_write(I2S_PORT, playBuf, outSamples * 2 * sizeof(int16_t),
               &bytesWritten, pdMS_TO_TICKS(10));
+    if (bytesWritten > 0) s_framesPlayed++;
+    if (bytesWritten < outSamples * 2 * sizeof(int16_t)) s_underruns++;
 }
 
 void audio_rx_set_volume(float volumePercent) {
     s_outputVolumePercent = constrain(volumePercent, 0.0f, 100.0f);
+}
+
+uint32_t audio_rx_get_underruns() {
+    return s_underruns;
+}
+
+uint32_t audio_rx_get_frames_played() {
+    return s_framesPlayed;
+}
+
+void audio_rx_task(void* param) {
+    // Placeholder FreeRTOS task – actual audio playback is driven by
+    // audio_rx_push_samples() called from the ESP-NOW receive callback.
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
 }

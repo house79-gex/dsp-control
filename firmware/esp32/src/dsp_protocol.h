@@ -99,3 +99,23 @@ DspLevelData* dsp_get_level_data();
 
 // Calcola il checksum del protocollo: somma di tutti i byte & 0xFF
 uint8_t dsp_calc_checksum(const uint8_t* data, uint8_t length);
+
+// ——— Comandi avanzati CQ260D ———
+
+// Salva preset corrente nello slot indicato
+bool dsp_save_preset(DspId id, uint8_t preset_number, const char* name);
+
+// Carica preset dallo slot indicato
+bool dsp_load_preset(DspId id, uint8_t preset_number);
+
+// Imposta crossover (frequenza di taglio e pendenza)
+// band: 0=low, 1=mid, 2=high; slope: 0=6dB/oct … 3=24dB/oct (LR)
+bool dsp_set_crossover(DspId id, uint8_t band, uint16_t freq_hz, uint8_t slope);
+
+// Imposta limiter (threshold dB, ratio 1:1..20:1, attack/release ms)
+bool dsp_set_limiter(DspId id, int8_t threshold_db, uint8_t ratio,
+                     uint16_t attack_ms, uint16_t release_ms);
+
+// Imposta compressor (threshold dB, ratio, attack/release ms, makeup gain dB)
+bool dsp_set_compressor(DspId id, int8_t threshold_db, uint8_t ratio,
+                        uint16_t attack_ms, uint16_t release_ms, int8_t makeup_db);

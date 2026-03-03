@@ -1,3 +1,53 @@
+name: CI Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-firmware:
+    name: Firmware Build (ESP32-S3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install platformio
+      - name: Build firmware
+        run: |
+          cd firmware/esp32
+          pio pkg install
+          pio run -e esp32s3
+
+  test-firmware:
+    name: Firmware Unit Tests (native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install platformio
+      - name: Run native unit tests
+        run: |
+          cd firmware/esp32
+          pio test -e native
+
+  build-modulo-rx:
+    name: Modulo RX Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install platformio
       - name: Build modulo_rx
         run: |
           if [ -d "modulo_rx" ]; then
@@ -8,3 +58,18 @@
             echo "⚠️  modulo_rx directory not found - skipping build (expected on main branch)"
             exit 0
           fi
+
+  test-flutter:
+    name: Flutter App Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+      - name: Flutter test
+        run: |
+          cd app/flutter
+          flutter pub get
+          flutter test

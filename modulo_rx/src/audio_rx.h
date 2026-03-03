@@ -6,7 +6,7 @@
 // Riceve campioni audio wireless e li invia al codec ES8388 via I2S DAC
 
 // Inizializza I2S + ES8388 in modalità playback
-bool audio_rx_init();
+void audio_rx_init();
 
 // Aggiunge campioni al buffer di playback
 // samples: campioni int16 stereo (o mono a seconda di audioMode)

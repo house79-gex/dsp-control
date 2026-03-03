@@ -289,3 +289,70 @@ void dsp_download_parameters(DspId id) {
 SysReg*       dsp_get_sysreg()     { return &s_sysReg;     }
 DspStatus*    dsp_get_status()     { return &s_status;      }
 DspLevelData* dsp_get_level_data() { return &s_levelData;   }
+
+// ——— Comandi avanzati CQ260D ———
+
+bool dsp_save_preset(DspId id, uint8_t preset_number, const char* name) {
+    uint8_t payload[20];
+    payload[0] = (uint8_t)(2 + 16);  // len = cmd(1) + preset_number(1) + name(16)
+    payload[1] = 0x20;                // CMD: save preset
+    payload[2] = preset_number;
+    memset(&payload[3], 0, 16);
+    if (name) {
+        size_t nlen = strlen(name);
+        if (nlen > 16) nlen = 16;
+        memcpy(&payload[3], name, nlen);
+    }
+    dsp_command_send(payload, sizeof(payload), id);
+    return true;
+}
+
+bool dsp_load_preset(DspId id, uint8_t preset_number) {
+    uint8_t payload[3] = { 0x02, 0x21, preset_number };
+    dsp_command_send(payload, sizeof(payload), id);
+    return true;
+}
+
+bool dsp_set_crossover(DspId id, uint8_t band, uint16_t freq_hz, uint8_t slope) {
+    uint8_t payload[7];
+    payload[0] = 0x06;                       // len
+    payload[1] = 0x30;                       // CMD: crossover
+    payload[2] = band;
+    payload[3] = (uint8_t)(freq_hz >> 8);
+    payload[4] = (uint8_t)(freq_hz & 0xFF);
+    payload[5] = slope;
+    payload[6] = 0x00;
+    dsp_command_send(payload, sizeof(payload), id);
+    return true;
+}
+
+bool dsp_set_limiter(DspId id, int8_t threshold_db, uint8_t ratio,
+                     uint16_t attack_ms, uint16_t release_ms) {
+    uint8_t payload[8];
+    payload[0] = 0x07;                           // len
+    payload[1] = 0x40;                           // CMD: limiter
+    payload[2] = (uint8_t)(threshold_db + 128);  // signed offset
+    payload[3] = ratio;
+    payload[4] = (uint8_t)(attack_ms >> 8);
+    payload[5] = (uint8_t)(attack_ms & 0xFF);
+    payload[6] = (uint8_t)(release_ms >> 8);
+    payload[7] = (uint8_t)(release_ms & 0xFF);
+    dsp_command_send(payload, sizeof(payload), id);
+    return true;
+}
+
+bool dsp_set_compressor(DspId id, int8_t threshold_db, uint8_t ratio,
+                        uint16_t attack_ms, uint16_t release_ms, int8_t makeup_db) {
+    uint8_t payload[9];
+    payload[0] = 0x08;                           // len
+    payload[1] = 0x41;                           // CMD: compressor
+    payload[2] = (uint8_t)(threshold_db + 128);  // signed offset
+    payload[3] = ratio;
+    payload[4] = (uint8_t)(attack_ms >> 8);
+    payload[5] = (uint8_t)(attack_ms & 0xFF);
+    payload[6] = (uint8_t)(release_ms >> 8);
+    payload[7] = (uint8_t)(release_ms & 0xFF);
+    payload[8] = (uint8_t)(makeup_db + 128);     // signed offset
+    dsp_command_send(payload, sizeof(payload), id);
+    return true;
+}
