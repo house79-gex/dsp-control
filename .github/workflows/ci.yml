@@ -51,7 +51,9 @@ jobs:
 
       - name: Build firmware (ESP32-S3)
         working-directory: firmware/esp32
-        run: pio run -e esp32s3
+        run: |
+          pio pkg install
+          pio run -e esp32s3
 
   # ——— Build firmware Modulo RX ———
   build-modulo-rx:
