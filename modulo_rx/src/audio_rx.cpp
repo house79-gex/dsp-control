@@ -25,8 +25,11 @@ void audio_rx_init() {
     Serial.println("[RX] Inizializzazione ES8388 DAC...");
 
     // Inizializza I2C per controllo codec.
-    // Wire.begin() è idempotente su ESP32 – sicuro chiamare più volte.
-    if (!Wire.isEnabled()) Wire.begin();
+    static bool wireInitialized = false;
+    if (!wireInitialized) {
+        Wire.begin(I2C_SDA, I2C_SCL);
+        wireInitialized = true;
+    }
     Wire.beginTransmission(ES8388_I2C_ADDR);
     if (Wire.endTransmission() != 0) {
         Serial.println("[RX] ES8388 non risponde su I2C");
