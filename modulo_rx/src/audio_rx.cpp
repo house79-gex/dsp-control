@@ -26,7 +26,7 @@ void audio_rx_init() {
 
     // Inizializza I2C per controllo codec.
     // Wire.begin() è idempotente su ESP32 – sicuro chiamare più volte.
-    if (!Wire.isEnabled()) Wire.begin();
+    Wire.begin();
     Wire.beginTransmission(ES8388_I2C_ADDR);
     if (Wire.endTransmission() != 0) {
         Serial.println("[RX] ES8388 non risponde su I2C");
