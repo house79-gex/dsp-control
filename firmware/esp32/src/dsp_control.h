@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
 #include "dsp_protocol.h"
 #include "dsp_registers.h"

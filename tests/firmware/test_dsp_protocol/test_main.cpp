@@ -1,4 +1,4 @@
-// test_dsp_protocol.cpp – Unit test per il protocollo RS-485 CQ260D
+// test_main.cpp – Unit test per il protocollo RS-485 CQ260D
 //
 // Usa Unity framework (già incluso in PlatformIO test runner).
 // Eseguire con: platformio test -e native --filter test_dsp_protocol
