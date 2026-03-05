@@ -1,6 +1,9 @@
+#include "audio_rx.h"
 #include "config.h"
 #include <Arduino.h>
 #include <driver/i2s.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <Wire.h>
 
 // ======= Modulo RX – Inizializzazione Audio DAC =======
@@ -9,7 +12,9 @@
 #define I2S_PORT        I2S_NUM_0
 #define I2S_BUFFER_SIZE 256
 
-static float s_outputVolumePercent = 80.0f;  // Volume default 80%
+static float    s_outputVolumePercent = 80.0f;  // Volume default 80%
+static uint32_t s_underruns          = 0;
+static uint32_t s_framesPlayed       = 0;
 
 // ——— Helper: scrittura registro ES8388 via I2C ———
 static void es8388_write_reg(uint8_t reg, uint8_t value) {
@@ -21,7 +26,7 @@ static void es8388_write_reg(uint8_t reg, uint8_t value) {
     }
 }
 
-void audio_rx_init() {
+bool audio_rx_init() {
     Serial.println("[RX] Inizializzazione ES8388 DAC...");
 
     // Inizializza I2C per controllo codec.
@@ -64,12 +69,13 @@ void audio_rx_init() {
     esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
     if (err != ESP_OK) {
         Serial.printf("[RX] Errore init I2S: %d\n", err);
-        return;
+        return false;
     }
     i2s_set_pin(I2S_PORT, &pin_config);
 
     Serial.printf("[RX] ES8388 DAC configurato: %d Hz, %d bit, volume %d%%\n",
                   AUDIO_SAMPLE_RATE, AUDIO_BIT_DEPTH, (int)s_outputVolumePercent);
+    return true;
 }
 
 // Riproduce campioni audio ricevuti via ESP-NOW
@@ -99,4 +105,27 @@ void audio_rx_play_samples(const int16_t* samples, uint8_t numSamples, bool isSt
 
 void audio_rx_set_volume(float volumePercent) {
     s_outputVolumePercent = constrain(volumePercent, 0.0f, 100.0f);
+}
+
+void audio_rx_push_samples(const int16_t* samples, uint8_t numSamples, uint8_t audioMode) {
+    bool isStereo = (audioMode == 1);  // audioMode: 0=Mono, 1=Stereo, 2=Sub
+    audio_rx_play_samples(samples, numSamples, isStereo);
+    s_framesPlayed++;
+}
+
+uint32_t audio_rx_get_underruns() {
+    return s_underruns;
+}
+
+uint32_t audio_rx_get_frames_played() {
+    return s_framesPlayed;
+}
+
+void audio_rx_task(void* param) {
+    // Placeholder FreeRTOS task required by main.cpp.
+    // Future use: implement audio buffering / underrun detection here.
+    (void)param;
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
 }
