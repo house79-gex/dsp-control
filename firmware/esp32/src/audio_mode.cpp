@@ -1,14 +1,17 @@
 #include "audio_mode.h"
 #include "config.h"
+#include "audio_config.h"
+#include "audio_src.h"
 #include "drivers/ES8388.h"
 #include <driver/i2s.h>
 #include <math.h>
 #include <esp_dsp.h>
 
 // ======= Configurazione I2S =======
-// TODO: verificare numeri porta e pin con il modulo ES8388 fisico
+// TODO: adattare i parametri al codec ES8388 specifico (init via I2C se necessario)
 #define I2S_PORT        I2S_NUM_0
-#define I2S_SAMPLE_RATE AUDIO_SAMPLE_RATE  // 44100 Hz – match Denon DJ SC LIVE 4
+// I2S_SAMPLE_RATE usa il sample rate di default; aggiornato dinamicamente da audio_config_init()
+#define I2S_SAMPLE_RATE AUDIO_SAMPLE_RATE_DEFAULT
 #define I2S_BUFFER_SIZE 256
 #define FFT_SIZE              512
 #define NUM_BANDS             32
@@ -40,11 +43,39 @@ void audio_init() {
     pinMode(RELAY_PIN, OUTPUT);
     digitalWrite(RELAY_PIN, LOW);
 
-    // Configurazione I2S per ES8388
-    // TODO: adattare i parametri al codec ES8388 specifico (init via I2C se necessario)
+    // 1. Inizializza ES8388 via I2C per ottenere il sample rate rilevato
+    // Wire.begin() è idempotente su ESP32 – sicuro chiamare più volte.
+    if (!Wire.isEnabled()) Wire.begin();
+    if (s_es8388.begin(&Wire, ES8388_I2C_ADDR)) {
+        // 2. Auto-detect sample rate e configura il sistema audio adattivo
+        audio_config_init();
+        uint32_t detectedSR = g_audioConfig.detectedInputSR;
+        if (detectedSR == 0) detectedSR = AUDIO_SAMPLE_RATE_DEFAULT;
+
+        s_es8388.setSampleRate(detectedSR);
+        s_es8388.setBitsPerSample(AUDIO_BIT_DEPTH);
+        s_es8388.setADCGain(s_inputGainDb);
+        s_es8388.startCapture();
+        s_es8388.startPlayback();
+        Serial.printf("[AUDIO] ES8388 configurato: %u Hz, %d bit, gain %.1f dB\n",
+                      detectedSR, AUDIO_BIT_DEPTH, s_inputGainDb);
+
+        // 3. Init SRC se necessario (input SR ≠ 48kHz)
+        if (g_audioConfig.srcActive) {
+            g_audioSrc.init(detectedSR, AUDIO_PROCESSING_SAMPLE_RATE);
+        }
+    } else {
+        Serial.println("[AUDIO] ES8388 non risponde via I2C – gain software only");
+        audio_config_init();  // Usa default 44.1kHz
+    }
+
+    // 4. Configurazione I2S con SR rilevato
+    uint32_t i2sSR = g_audioConfig.detectedInputSR;
+    if (i2sSR == 0) i2sSR = AUDIO_SAMPLE_RATE_DEFAULT;
+
     i2s_config_t i2s_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_RX),
-        .sample_rate = I2S_SAMPLE_RATE,
+        .sample_rate = i2sSR,
         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         .communication_format = I2S_COMM_FORMAT_STAND_I2S,
@@ -75,22 +106,7 @@ void audio_init() {
         return;
     }
 
-    Serial.println("[AUDIO] I2S inizializzato");
-
-    // Inizializza ES8388 codec via I2C per controllo ADC gain.
-    // Wire.begin() è idempotente su ESP32 – sicuro chiamare più volte.
-    if (!Wire.isEnabled()) Wire.begin();
-    if (s_es8388.begin(&Wire, ES8388_I2C_ADDR)) {
-        s_es8388.setSampleRate(AUDIO_SAMPLE_RATE);
-        s_es8388.setBitsPerSample(AUDIO_BIT_DEPTH);
-        s_es8388.setADCGain(s_inputGainDb);
-        s_es8388.startCapture();
-        s_es8388.startPlayback();
-        Serial.printf("[AUDIO] ES8388 configurato: %d Hz, %d bit, gain %.1f dB\n",
-                      AUDIO_SAMPLE_RATE, AUDIO_BIT_DEPTH, s_inputGainDb);
-    } else {
-        Serial.println("[AUDIO] ES8388 non risponde via I2C – gain software only");
-    }
+    Serial.printf("[AUDIO] I2S inizializzato @ %u Hz\n", i2sSR);
 
     // Inizializza tabelle FFT e finestra Hann
     dsps_fft2r_init_fc32(nullptr, FFT_SIZE);
@@ -129,7 +145,10 @@ void audio_generate_test_tone(float frequencyHz, float amplitude) {
     static float s_phase = 0.0f;
     const float twoPi   = 2.0f * (float)M_PI;
     const float maxAmp  = 32767.0f * amplitude;
-    const float phaseStep = twoPi * frequencyHz / (float)I2S_SAMPLE_RATE;
+    // Usa il sample rate rilevato (o default) per il calcolo del passo di fase
+    uint32_t sr = g_audioConfig.detectedInputSR;
+    if (sr == 0) sr = AUDIO_SAMPLE_RATE_DEFAULT;
+    const float phaseStep = twoPi * frequencyHz / (float)sr;
 
     for (int i = 0; i < I2S_BUFFER_SIZE; i++) {
         int16_t s = (int16_t)(sinf(s_phase) * maxAmp);
@@ -192,7 +211,10 @@ void audio_fft_process() {
     // Calcola 32 bande logaritmiche (20Hz-20kHz)
     FftResult result;
     result.timestamp = millis();
-    const float freqRes = (float)I2S_SAMPLE_RATE / FFT_SIZE;
+    // Usa il sample rate rilevato per calcolare la risoluzione in frequenza
+    uint32_t sr = g_audioConfig.detectedInputSR;
+    if (sr == 0) sr = AUDIO_SAMPLE_RATE_DEFAULT;
+    const float freqRes = (float)sr / FFT_SIZE;
     const float logMin = log10f(20.0f);
     const float logMax = log10f(20000.0f);
 
