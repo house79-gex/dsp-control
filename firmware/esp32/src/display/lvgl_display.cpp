@@ -82,7 +82,7 @@ LGFX::LGFX() {
         auto cfg = _light_instance.config();
         cfg.pin_bl      = LCD_BL_EN;
         cfg.invert      = false;
-        cfg.freq        = 44100;  // Hz PWM
+        cfg.freq        = 5000;     // Hz PWM backlight (1-20kHz tipico per LED backlight)
         cfg.pwm_channel = 7;
 
         _light_instance.config(cfg);
