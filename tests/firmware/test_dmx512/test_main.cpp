@@ -1,4 +1,4 @@
-// test_dmx512.cpp – Unit test per il layer DMX512
+// test_main.cpp – Unit test per il layer DMX512
 //
 // Usa Unity framework (già incluso in PlatformIO test runner).
 // Eseguire con: platformio test -e native --filter test_dmx512

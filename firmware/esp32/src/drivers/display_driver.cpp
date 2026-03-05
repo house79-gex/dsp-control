@@ -1,6 +1,7 @@
 #include "display_driver.h"
 #include "../../config.h"
 #include <Arduino.h>
+#include <lvgl.h>
 
 // ======= Driver Display + Touch via LovyanGFX =======
 //

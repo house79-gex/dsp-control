@@ -1,6 +1,12 @@
 #pragma once
 #include <Arduino.h>
-#include <lvgl.h>
+
+// Forward declarations for LVGL types (full headers in display_driver.cpp)
+typedef struct _lv_disp_drv_t lv_disp_drv_t;
+typedef struct _lv_area_t lv_area_t;
+typedef union _lv_color_t lv_color_t;
+typedef struct _lv_indev_drv_t lv_indev_drv_t;
+typedef struct _lv_indev_data_t lv_indev_data_t;
 
 // ======= Driver Display SPI + Touch Capacitivo =======
 // Supporta display 5" 800x480 (ILI9488 / ST7796) via LovyanGFX
