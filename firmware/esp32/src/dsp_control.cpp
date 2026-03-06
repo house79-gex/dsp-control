@@ -1,5 +1,6 @@
 #include "dsp_control.h"
 #include "dsp_protocol.h"
+#include "audio_config.h"
 #include "storage.h"
 #include <Arduino.h>
 #include <vector>
@@ -85,9 +86,10 @@ static uint16_t freq_to_uint16(float freqHz) {
     return (uint16_t)fminf(freqHz, 65535.0f);
 }
 
-// Converte delay ms in campioni (48kHz)
+// Converte delay ms in campioni per DSP CQ260D (SEMPRE 48kHz fisso da datasheet)
+// Delega a audio_config.h per garantire coerenza in tutto il firmware
 static uint16_t ms_to_samples(float delayMs) {
-    return (uint16_t)(delayMs * 48.0f);  // 48 campioni/ms a 48kHz
+    return audio_ms_to_samples_dsp(delayMs);
 }
 
 // Invia un parametro singolo al DSP tramite protocollo
@@ -182,7 +184,11 @@ void dsp_set_speaker_lpf(uint8_t id, float freqHz, uint8_t slope) {
 
 void dsp_set_speaker_delay(uint8_t id, float delayMs) {
     Serial.printf("[DSP] Delay cassa ID=%d → %.2f ms\n", id, delayMs);
-    uint16_t samples = ms_to_samples(delayMs);
+    // Conversione corretta per DSP @ 48kHz fisso (da datasheet CQ260D)
+    uint16_t samples = audio_ms_to_samples_dsp(delayMs);
+    float actualDelayMs = (float)samples / 48.0f;
+    Serial.printf("      → %u samples @ 48kHz (effettivo: %.3f ms)\n",
+                  samples, actualDelayMs);
     dsp_get_sysreg()->Delay[0] = samples;
     send_param(id, 0x20, 0, samples);
 }
