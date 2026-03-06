@@ -200,6 +200,9 @@ ESP32                                         DSP CQ260D
 
 ## 7. Struttura SYSREG Completa
 
+> Allineata alla struct C# di riferimento in `docs/reverse_data_parts/reverse_data_part001.md`.
+> Dimensione totale: **1092 byte**.
+
 | Campo              | Tipo       | Dim  | Offset | Range     | Unità     | Descrizione                           |
 |--------------------|------------|------|--------|-----------|-----------|---------------------------------------|
 | `InGain[4]`        | uint16[4]  | 8B   | 0      | 0–65535   | lineare   | Gain canali ingresso (4 ch)           |
@@ -215,26 +218,27 @@ ESP32                                         DSP CQ260D
 | `EQ_Bypass[8]`     | uint8[8]   | 8B   | 928    | 0–1       | –         | Bypass EQ uscite                      |
 | `HLPF_Freq[8]`     | uint16[8]  | 16B  | 936    | 20–20000  | Hz        | Freq HPF[0..3]+LPF[4..7]             |
 | `HLPF_Type[8]`     | uint8[8]   | 8B   | 952    | 0–2       | –         | 0=12dB/oct,1=24dB/oct,2=48dB/oct    |
-| `HLPF_Bypass[8]`   | uint8[8]   | 8B   | 960    | 0–1       | –         | Bypass HPF/LPF                        |
-| `Delay[4]`         | uint16[4]  | 8B   | 968    | 0–65535   | campioni  | Delay (÷48000 = secondi)             |
-| `Threhold_Noise[4]`| uint8[4]   | 4B   | 976    | 0–255     | –         | Soglia noise gate                     |
-| `ATack_Noise[4]`   | uint8[4]   | 4B   | 980    | 0–255     | ms        | Attack noise gate                     |
-| `Decay_Noise[4]`   | uint8[4]   | 4B   | 984    | 0–255     | ms        | Decay noise gate                      |
-| `Threhold[4]`      | uint8[4]   | 4B   | 988    | 0–255     | –         | Soglia compressore                    |
-| `ATack[4]`         | uint8[4]   | 4B   | 992    | 0–255     | ms        | Attack compressore                    |
-| `Decay[4]`         | uint8[4]   | 4B   | 996    | 0–255     | ms        | Release compressore                   |
-| `CompRatio[4]`     | uint8[4]   | 4B   | 1000   | 1–20      | ratio:1   | Ratio compressore                     |
-| `CompMakeup[4]`    | uint8[4]   | 4B   | 1004   | 0–48      | dB        | Makeup gain compressore               |
-| `Mute[4]`          | uint8[4]   | 4B   | 1008   | 0–1       | –         | Mute: 1=muto                          |
-| `Phase[4]`         | uint8[4]   | 4B   | 1012   | 0–1       | –         | Fase: 1=invertito                     |
-| `MixVol[16]`       | uint16[16] | 32B  | 1016   | 0–65535   | lineare   | Matrice mixer (4in × 4out)           |
-| `MixRoute[16]`     | uint8[16]  | 16B  | 1048   | –         | –         | Routing matrice mixer                 |
-| `masterVol`        | uint16     | 2B   | 1064   | 0–65535   | lineare   | Volume master globale                 |
-| `mode`             | uint8      | 1B   | 1066   | –         | –         | Modalità operativa                    |
-| `lock`             | uint8      | 1B   | 1067   | 0–1       | –         | Lock pannello                         |
-| `password[6]`      | uint8[6]   | 6B   | 1068   | –         | ASCII     | Password 6 cifre                      |
-| `bootChar[7]`      | uint8[7]   | 7B   | 1074   | –         | ASCII     | Stringa avvio display                 |
-| `ver`              | uint8      | 1B   | 1081   | –         | –         | Versione firmware DSP                 |
+| `Fir_Freq[8]`      | uint16[8]  | 16B  | 960    | 20–20000  | Hz        | Frequenza filtri FIR                  |
+| `Fir_Type[8]`      | uint8[8]   | 8B   | 976    | 0–255     | –         | Tipo filtro FIR                       |
+| `Delay[4]`         | uint16[4]  | 8B   | 984    | 0–65535   | campioni  | Delay (÷48000 = secondi)             |
+| `Threhold_Noise[4]`| uint8[4]   | 4B   | 992    | 0–255     | –         | Soglia noise gate                     |
+| `ATack_Noise[4]`   | uint8[4]   | 4B   | 996    | 0–255     | ms        | Attack noise gate                     |
+| `Decay_Noise[4]`   | uint8[4]   | 4B   | 1000   | 0–255     | ms        | Decay noise gate                      |
+| `Threhold[4]`      | uint8[4]   | 4B   | 1004   | 0–255     | –         | Soglia compressore                    |
+| `ATack[4]`         | uint8[4]   | 4B   | 1008   | 0–255     | ms        | Attack compressore                    |
+| `Decay[4]`         | uint8[4]   | 4B   | 1012   | 0–255     | ms        | Release compressore                   |
+| `Mute[4]`          | uint8[4]   | 4B   | 1016   | 0–1       | –         | Mute: 1=muto                          |
+| `Phase[4]`         | uint8[4]   | 4B   | 1020   | 0–1       | –         | Fase: 1=invertito                     |
+| `MixVol[16]`       | uint16[16] | 32B  | 1024   | 0–65535   | lineare   | Matrice mixer (4in × 4out)           |
+| `MixRoute[16]`     | uint8[16]  | 16B  | 1056   | –         | –         | Routing matrice mixer                 |
+| `mode`             | uint8      | 1B   | 1072   | –         | –         | Modalità operativa                    |
+| `lock`             | uint8      | 1B   | 1073   | 0–1       | –         | Lock pannello                         |
+| `password[6]`      | uint8[6]   | 6B   | 1074   | –         | ASCII     | Password 6 cifre                      |
+| `bootChar[7]`      | uint8[7]   | 7B   | 1080   | –         | ASCII     | Stringa avvio display                 |
+| `masterVol`        | uint16     | 2B   | 1087   | 0–65535   | lineare   | Volume master globale                 |
+| `AC_V_Sel`         | uint8      | 1B   | 1089   | –         | –         | Selezione tensione AC                 |
+| `Clip_TH`          | uint8      | 1B   | 1090   | –         | –         | Soglia clip                           |
+| `ver`              | uint8      | 1B   | 1091   | –         | –         | Versione firmware DSP                 |
 
 ---
 
