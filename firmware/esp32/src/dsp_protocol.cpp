@@ -106,18 +106,25 @@ void dsp_uctrl_cmd_processor() {
 
         case DSP_CMD_UPLOAD_DATA: {
             // Upload blocco dati (50 byte per volta) → popola SYSREG
-            uint16_t offset = dataWord * DSP_UPLOAD_BLOCK_SIZE;
-            uint8_t* sysRegPtr = (uint8_t*)&s_sysReg;
+            // Il numero di blocco è nel campo SUB_CMD (s_rxBuffer[5])
+            uint16_t blockNum = subCmd;
+            uint16_t offset   = (uint16_t)(blockNum * DSP_UPLOAD_BLOCK_SIZE);
+            uint8_t* sysRegPtr  = (uint8_t*)&s_sysReg;
             size_t   sysRegSize = sizeof(SysReg);
 
             if (offset < sysRegSize) {
-                size_t copyLen = s_rxBuffer[0] - 4; // Sottrai header interno
+                // Dati = LEN - 5 (LEN comprende: sub-field, DATA_L, DATA_H, CMD_ID, block_num)
+                size_t copyLen = (s_rxBuffer[0] > 5) ? (size_t)(s_rxBuffer[0] - 5) : 0;
+                if (copyLen > DSP_UPLOAD_BLOCK_SIZE) {
+                    copyLen = DSP_UPLOAD_BLOCK_SIZE;
+                }
                 if (offset + copyLen > sysRegSize) {
                     copyLen = sysRegSize - offset;
                 }
-                if (copyLen > 0 && s_rxCnt >= (int)(6 + copyLen)) {
+                if (copyLen > 0) {
                     memcpy(sysRegPtr + offset, &s_rxBuffer[6], copyLen);
-                    Serial.printf("[DSP_PROTO] Upload blocco %d (%d byte)\n", dataWord, (int)copyLen);
+                    Serial.printf("[DSP_PROTO] Upload blocco %d (%d byte @ offset %d)\n",
+                                  blockNum, (int)copyLen, (int)offset);
                 }
             }
             break;
@@ -163,8 +170,12 @@ void dsp_rx_process_byte(uint8_t rx) {
             if (rx == 0x55) {
                 s_rxState = 2;
                 s_rxCnt   = 0;
+            }
+            // Un altro 0xFF mantiene la ricerca in stato 1 (come da ref C#)
+            else if (rx == 0xFF) {
+                s_rxState = 1; // Rimane in attesa di 0x55
             } else {
-                s_rxState = 0; // Reset se non è 0x55
+                s_rxState = 0; // Byte non valido: torna ad attendere 0xFF
             }
             break;
 
@@ -208,9 +219,11 @@ bool dsp_connect(DspId id) {
     // 1. Invia CommandSend([3, 0x30, 0, 0, 0, 0, 0, 0])
     // 2. Attendi DSP_CONNECT_TIMEOUT_MS
     // 3. Verifica Connected_OK
+    // 4. Se connesso, richiede upload parametri (DSP → controller)
     Serial.println("[DSP_PROTO] Avvio sequenza connessione CQ260D...");
 
-    s_status.connected = false;
+    s_status.connected  = false;
+    s_status.downloadOk = false;
 
     const uint8_t connectCmd[] = { 3, DSP_TXCMD_CONNECT, 0, 0, 0, 0, 0, 0 };
     dsp_command_send(connectCmd, sizeof(connectCmd), id);
@@ -226,6 +239,8 @@ bool dsp_connect(DspId id) {
                 dsp_rx_process_byte(rxBuf[i]);
                 if (s_status.connected) {
                     Serial.println("[DSP_PROTO] Connessione riuscita");
+                    // Avvia upload parametri dal DSP al controller
+                    dsp_upload_parameters(id);
                     return true;
                 }
             }

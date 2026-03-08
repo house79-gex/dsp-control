@@ -222,8 +222,7 @@ void dsp_set_compressor(uint8_t id, uint8_t threshold, uint8_t ratio,
     dsp_get_sysreg()->Threhold[0]   = threshold;
     dsp_get_sysreg()->ATack[0]      = attack;
     dsp_get_sysreg()->Decay[0]      = release;
-    dsp_get_sysreg()->CompRatio[0]  = ratio;
-    dsp_get_sysreg()->CompMakeup[0] = makeup;
+    // CompRatio e CompMakeup non fanno parte della SYSREG CQ260D (inviati via SET_PARAM)
     send_param(id, 0x50, 0, threshold);
     send_param(id, 0x51, 0, ratio);
     send_param(id, 0x52, 0, attack);
