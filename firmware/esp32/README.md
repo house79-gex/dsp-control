@@ -1,6 +1,19 @@
-# Firmware ESP32-S3 – Sistema Audio PA
+# Firmware ESP32-S3 Master – Display + Audio + RS-485 + WiFi
 
-Firmware PlatformIO per il box di controllo centrale del sistema audio professionale basato su **ESP32-S3**.
+Firmware PlatformIO per il box di controllo centrale del sistema audio professionale basato su **ESP32-S3** (architettura Dual-ESP32 v2.0+).
+
+Questo è il firmware dell'**ESP32 #1 (Master)**. Per lo Slave, vedere [`firmware/esp32_slave/`](../esp32_slave/).
+
+## Ruolo nel Sistema
+
+| Responsabilità | Stato |
+|----------------|-------|
+| Display LVGL 800×480 touch GT911 | ✅ |
+| ES8388 ADC/DAC (I2S Master, genera BCLK/WS) | ✅ |
+| RS-485 → DSP CQ260D | ✅ |
+| WiFi AP + REST API | ✅ |
+| IPC UART verso ESP32 #2 (Slave) | ✅ Nuovo |
+| Storage NVS (con fallback se Slave non disponibile) | ✅ Aggiornato |
 
 ## Requisiti
 
@@ -26,8 +39,9 @@ pio device monitor --baud 115200
 ```
 src/
 ├── main.cpp                 – Setup e loop principale
-├── config.h                 – Pin, costanti, GPIO encoder e LED ring
-├── audio_mode.h/cpp         – I2S ES8388 + FFT reale ESP-DSP + VU meter
+├── config.h                 – Pin, costanti, GPIO (Master v2.0: I2S/IPC/RS485 aggiornati)
+├── ipc_master.h/cpp         – Protocollo UART IPC verso ESP32 #2 Slave (NUOVO v2.0)
+├── audio_mode.h/cpp         – I2S Master (genera BCLK GPIO12/WS GPIO13) + FFT reale ESP-DSP + VU meter
 ├── audio_reactive.h/cpp     – Audio-reactive DMX (6 bande frequenza)
 ├── rs485.h/cpp              – RS-485, discovery, beep pattern
 ├── storage.h/cpp            – Persistenza NVS (preset, fixture, scene, WLED)
