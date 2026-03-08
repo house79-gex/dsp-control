@@ -1,0 +1,17 @@
+# Build artifacts
+firmware/esp32/.pio/
+firmware/esp32_slave/.pio/
+modulo_rx/.pio/
+
+# Dependency directories
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
