@@ -87,11 +87,13 @@ void audio_init() {
         .fixed_mclk = 0
     };
 
+    // I2S configurato come Master: genera BCLK (GPIO12) e WS (GPIO13)
+    // BCLK e WS escono verso ES8388 E verso ESP32 #2 (I2S Slave) in parallelo
     i2s_pin_config_t pin_config = {
-        .bck_io_num   = I2S_SCK,
-        .ws_io_num    = I2S_WS,
-        .data_out_num = I2S_SD_OUT,
-        .data_in_num  = I2S_SD_IN
+        .bck_io_num   = I2S_BCLK,    // GPIO12 – clock out verso ES8388 + ESP32 #2
+        .ws_io_num    = I2S_WS,      // GPIO13 – word select out verso ES8388 + ESP32 #2
+        .data_out_num = I2S_DOUT,    // GPIO38 – DAC output verso ES8388 DIN
+        .data_in_num  = I2S_DIN      // GPIO11 – ADC input da ES8388 DOUT (condiviso)
     };
 
     esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);

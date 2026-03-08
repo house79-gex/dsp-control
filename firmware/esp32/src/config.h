@@ -1,6 +1,8 @@
 #pragma once
 
-// ======= CONFIGURAZIONE PIN ESP32-S3 =======
+// ======= CONFIGURAZIONE PIN ESP32-S3 #1 (MASTER – Display + Audio) =======
+// Board: UEDX80480050E-WB-A (5" 800×480 RGB, 16MB Flash, 8MB PSRAM)
+// Architettura: Dual-ESP32 – questo è il Master; vedere firmware/esp32_slave/ per lo Slave
 
 // ——— Display RGB UEDX80480050E-WB-A 5" (800×480, 40-pin RGB interface) ———
 // Riferimento: docs/UEDX80480050E-WB-A-V3.3-SPEC.pdf, pagine 6-9
@@ -40,48 +42,65 @@
 // Riferimento: SPEC pag.9, GT911 datasheet
 #define TOUCH_SCL       20   // GPIO20 – Touch I2C clock
 #define TOUCH_SDA       19   // GPIO19 – Touch I2C data
-#define TOUCH_RST       38   // GPIO38 – Touch reset (active LOW)
-#define TOUCH_INT       18   // GPIO18 – Touch interrupt
+// NOTA: GPIO38 riassegnato a I2S_DOUT (v2.0); TOUCH_RST collegare a expander TCA9535 P1_0
+// NOTA: GPIO18 riassegnato a IPC_UART_RX (v2.0); touch interrupt gestito in polling su GT911
 // Indirizzo I2C GT911: 0x5D (INT=LOW @ reset) oppure 0x14 (INT=HIGH @ reset)
 #define TOUCH_I2C_ADDR  0x5D
 
-// I2S - ES8388
-#define I2S_SCK     15  // TODO: verificare
-#define I2S_WS      16  // TODO: verificare
-#define I2S_SD_OUT  17  // TODO: verificare
-#define I2S_SD_IN   18  // TODO: verificare
+// ——— I2S ES8388 (Master Mode – genera BCLK/WS) ———
+// BCLK e WS escono da ESP32 #1 verso ES8388 E verso ESP32 #2 (I2S Slave)
+#define I2S_BCLK    12   // GPIO12 – Bit Clock out → ES8388 + ESP32 #2 GPIO5
+#define I2S_WS      13   // GPIO13 – Word Select out → ES8388 + ESP32 #2 GPIO6
+#define I2S_DIN     11   // GPIO11 – Data In ← ES8388 DOUT (condiviso con ESP32 #2)
+#define I2S_DOUT    38   // GPIO38 – Data Out → ES8388 DIN (DAC playback)
+#define I2S_MCLK    -1   // Non usato (ES8388 usa BCLK come riferimento clock)
 
-// RS-485 MAX485
-#define RS485_TX    43  // UART TX
-#define RS485_RX    44  // UART RX
-#define RS485_DE    21  // Driver Enable (HIGH = trasmissione) – NOTA: condiviso con LCD_R3
-#define RS485_RE    20  // Receiver Enable (LOW = ricezione)
+// ——— UART IPC verso ESP32 #2 (Slave) ———
+// Protocollo binario con sync+CRC8; vedere ipc_master.h per il protocollo
+#define IPC_UART_NUM    1        // UART1
+#define IPC_UART_TX     17       // GPIO17 – IPC TX → ESP32 #2 GPIO2 (RX)
+#define IPC_UART_RX     18       // GPIO18 – IPC RX ← ESP32 #2 GPIO1 (TX)
+#define IPC_UART_BAUD   115200   // Baudrate IPC
 
-// DMX512 (UART1)
-#define DMX_TX       1  // GPIO1 – DMX TX output – NOTA: condiviso con LCD_B4
-#define DMX_DE       2  // GPIO2 – DMX Driver Enable – NOTA: condiviso con LCD_BL_EN
+// ——— RS-485 DSP CQ260D ———
+// UART2; DE e RE uniti su singolo GPIO (HIGH=TX, LOW=RX)
+#define RS485_UART_NUM  2    // UART2
+#define RS485_TX        43   // GPIO43 – UART2 TX
+#define RS485_RX        44   // GPIO44 – UART2 RX
+#define RS485_DE_RE     10   // GPIO10 – DE+RE uniti (HIGH=trasmissione, LOW=ricezione)
 
-// Relay DPDT (optoisolatore)
-#define RELAY_PIN   45  // HIGH = TestTone, LOW = MixerPassThrough – NOTA: condiviso con LCD_R0
+// ——— DMX512 ———
+// Spostato su ESP32 #2 (Slave); non più su Master per liberare GPIO e CPU
+// Vedere firmware/esp32_slave/src/config.h
 
-// LED di stato
-#define LED_STATUS  48  // LED integrato ESP32-S3 – NOTA: condiviso con LCD_R1
+// ——— Relay DPDT e LED di stato ———
+// Spostati su GPIO expander TCA9535 (I2C addr 0x20) per liberare GPIO45/48 per display
+// TCA9535 P0_0 = Relay DPDT (HIGH=TestTone, LOW=MixerPassThrough)
+// TCA9535 P0_1 = LED Status
+#define TCA9535_I2C_ADDR    0x20   // Indirizzo I2C GPIO expander
+#define TCA9535_RELAY_PIN   0      // P0_0 – Relay DPDT
+#define TCA9535_LED_STATUS  1      // P0_1 – LED di stato
+// Alias per compatibilità (usa valori TCA9535 virtuale via I2C)
+#define RELAY_PIN   TCA9535_RELAY_PIN
+#define LED_STATUS  TCA9535_LED_STATUS
 
 // WiFi AP
 #define WIFI_SSID   "SISTEMA_AUDIO_01"
 #define WIFI_PASS   "audio1234"
 
 // LED Ring encoder (WS2812B)
-#define LED_RING_VOL_PIN    39  // TODO: verificare GPIO
-#define LED_RING_BAL_PIN    40  // TODO: verificare GPIO
+// NOTA: GPIO39/40/41/42 condivisi con LCD_HSYNC/DE/VSYNC/PCLK
+// Spostare su TCA9535 o usare GPIO liberi dopo verifica schema elettrico
+#define LED_RING_VOL_PIN    39  // TODO: verificare GPIO (conflitto LCD_HSYNC)
+#define LED_RING_BAL_PIN    40  // TODO: verificare GPIO (conflitto LCD_DE)
 #define LED_RING_COUNT      16  // Numero LED per anello
 
 // Encoder rotativi
+// NOTA: GPIO41/42/47/46 alcuni condivisi con segnali LCD – verificare schema
 #define ENCODER_VOL_A       41  // TODO: verificare GPIO encoder volume A
 #define ENCODER_VOL_B       42  // TODO: verificare GPIO encoder volume B
-#define ENCODER_BAL_A       47  // TODO: verificare GPIO encoder balance A
-#define ENCODER_BAL_B       46  // TODO: verificare GPIO encoder balance B
-// NOTA: GPIO 48 è usato da LED_STATUS, usare GPIO 46 per ENCODER_BAL_B
+#define ENCODER_BAL_A       47  // GPIO47 – encoder balance A
+#define ENCODER_BAL_B       46  // GPIO46 – encoder balance B
 
 // ======= CONFIGURAZIONE AUDIO =======
 // Ottimizzato per sorgente Denon DJ SC LIVE 4 (output +18 dBu, 44.1 kHz nativo)
