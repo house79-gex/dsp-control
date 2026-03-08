@@ -88,19 +88,25 @@
 #define WIFI_SSID   "SISTEMA_AUDIO_01"
 #define WIFI_PASS   "audio1234"
 
-// LED Ring encoder (WS2812B)
-// NOTA: GPIO39/40/41/42 condivisi con LCD_HSYNC/DE/VSYNC/PCLK
-// Spostare su TCA9535 o usare GPIO liberi dopo verifica schema elettrico
-#define LED_RING_VOL_PIN    39  // TODO: verificare GPIO (conflitto LCD_HSYNC)
-#define LED_RING_BAL_PIN    40  // TODO: verificare GPIO (conflitto LCD_DE)
-#define LED_RING_COUNT      16  // Numero LED per anello
+// ===== ENCODER ROTATIVI con PULSANTI =====
+// Encoder Volume (con LED ring 12 LED WS2812B)
+// NOTA: GPIO 35-37 liberi; verificare schema PCB prima di assemblare
+#define ENCODER_VOL_A       35   // GPIO35 (CLK encoder volume)
+#define ENCODER_VOL_B       36   // GPIO36 (DT encoder volume)
+#define ENCODER_VOL_BTN     37   // GPIO37 (pulsante encoder volume)
+// NOTA: GPIO27 potenzialmente condiviso con PSRAM interno – verificare schema
+#define LED_RING_VOL_PIN    27   // GPIO27 (data WS2812B ring volume)
 
-// Encoder rotativi
-// NOTA: GPIO41/42/47/46 alcuni condivisi con segnali LCD – verificare schema
-#define ENCODER_VOL_A       41  // TODO: verificare GPIO encoder volume A
-#define ENCODER_VOL_B       42  // TODO: verificare GPIO encoder volume B
-#define ENCODER_BAL_A       47  // GPIO47 – encoder balance A
-#define ENCODER_BAL_B       46  // GPIO46 – encoder balance B
+// Encoder Balance (con LED ring 12 LED WS2812B)
+// NOTA: GPIO11/12 in conflitto con I2S_DIN/BCLK → usare GPIO33/34 come alternativa
+#define ENCODER_BAL_A       33   // GPIO33 (CLK encoder balance – alternativa a GPIO11)
+#define ENCODER_BAL_B       34   // GPIO34 (DT encoder balance – alternativa a GPIO12)
+// NOTA: GPIO26/28 potenzialmente condivisi con PSRAM interno – verificare schema
+#define ENCODER_BAL_BTN     26   // GPIO26 (pulsante encoder balance)
+#define LED_RING_BAL_PIN    28   // GPIO28 (data WS2812B ring balance)
+
+#define LED_RING_COUNT      12   // 12 LED per ring (standard)
+#define LED_RING_BRIGHTNESS 80   // 0-255 (80 = ~30% luminosità)
 
 // ======= CONFIGURAZIONE AUDIO =======
 // Ottimizzato per sorgente Denon DJ SC LIVE 4 (output +18 dBu, 44.1 kHz nativo)
