@@ -1,10 +1,30 @@
 # DSP Control – Sistema Audio PA Professionale
 
-Sistema di controllo DSP per impianti audio professionale basato su **ESP32-S3** con catena **RS-485** verso **moduli amplificatori attivi PDA1001 con DSP CQ260D integrato**, controller DMX512 per luci, audio-reactive e autotune automatico.
+[![Versione](https://img.shields.io/badge/versione-2.0.0-blue)](CHANGELOG.md)
+[![Architettura](https://img.shields.io/badge/architettura-Dual--ESP32-green)](docs/DUAL_ESP32_INTEGRATION.md)
+[![Firmware](https://img.shields.io/badge/firmware-PlatformIO-orange)](firmware/esp32/platformio.ini)
 
-## Panoramica
+Sistema di controllo DSP per impianti audio professionale basato su **architettura Dual-ESP32-S3** con catena **RS-485** verso **moduli amplificatori attivi PDA1001 con DSP CQ260D integrato**, controller DMX512 per luci, audio-reactive e autotune automatico.
 
-Il sistema gestisce un impianto audio PA multi-cassa + illuminazione scenica da un box di controllo centrale o da smartphone Android:
+## Architettura Dual-ESP32 (v2.0+)
+
+Il sistema utilizza **due ESP32-S3** con ruoli distinti per superare i limiti GPIO e CPU di un singolo MCU:
+
+```
+┌─────────────────────────┐   I2S Condiviso   ┌──────────────────────────┐
+│   ESP32 #1 (MASTER)     │◄─────────────────►│   ESP32 #2 (SLAVE)       │
+│   UEDX80480050E-WB-A    │   UART IPC        │   ESP32-S3-WROOM1-N16R8  │
+│   Display 5" 800×480    │◄─────────────────►│   Antenna IPEX 3dBi      │
+│   ES8388 ADC/DAC        │   115200 baud      │   DMX512 @ 40Hz          │
+│   RS-485 → CQ260D DSP   │   CRC8 frames      │   ESP-NOW wireless TX    │
+│   WiFi AP + REST API    │                    │   NVS Storage            │
+│   CPU ~60%              │                    │   CPU ~40%               │
+└─────────────────────────┘                    └──────────────────────────┘
+```
+
+Vedere [`docs/DUAL_ESP32_INTEGRATION.md`](docs/DUAL_ESP32_INTEGRATION.md) per la guida completa.
+
+## Funzionalità
 
 - **Controllo DSP avanzato** per casse 2-vie, 3-vie e subwoofer (CQ260D)
 - **Controller DMX512** per fixture PAR RGB, moving head, wash, strobe
@@ -25,35 +45,46 @@ Il sistema gestisce un impianto audio PA multi-cassa + illuminazione scenica da 
 ```
 dsp-control/
 ├── README.md
+├── ARCHITECTURE.md          ← Architettura sistema (diagrammi dual-ESP32)
+├── CHANGELOG.md
 ├── web/
 │   ├── preview.html         ← Anteprima HTML interfaccia completa (standalone)
 │   └── wled_preview.html    ← Anteprima HTML interfaccia WLED Neon LED (4CH)
 ├── docs/
-│   └── v2_Riepilogo.md
+│   ├── DUAL_ESP32_INTEGRATION.md  ← Guida integrazione dual-ESP32 (NUOVO)
+│   ├── WIRING_GUIDE.md            ← Cablaggio fisico + BOM (NUOVO)
+│   ├── PINOUT_REFERENCE.md        ← Tabelle pinout complete (NUOVO)
+│   ├── TESTING.md                 ← Procedure test IPC/I2S/DMX (NUOVO)
+│   └── ...altri docs...
 ├── firmware/
-│   └── esp32/
+│   ├── esp32/               ← ESP32 #1 (Master: Display + Audio + RS-485 + WiFi)
+│   │   ├── platformio.ini
+│   │   ├── README.md
+│   │   └── src/
+│   │       ├── main.cpp
+│   │       ├── config.h             ← pin GPIO Master + IPC + I2S + RS-485
+│   │       ├── ipc_master.h/cpp     ← Protocollo IPC verso Slave (NUOVO)
+│   │       ├── audio_mode.h/cpp     ← I2S Master (genera BCLK/WS) + FFT 32 bande
+│   │       ├── storage.h/cpp        ← Storage con IPC delegation + fallback NVS
+│   │       └── ...altri moduli...
+│   └── esp32_slave/         ← ESP32 #2 (Slave: DMX + Wireless + Storage) (NUOVO)
 │       ├── platformio.ini
 │       ├── README.md
 │       └── src/
 │           ├── main.cpp
-│           ├── config.h             ← pin, costanti, GPIO encoder/LED ring
-│           ├── audio_mode.h/cpp     ← I2S ES8388 + FFT reale + VU meter
-│           ├── audio_reactive.h/cpp ← audio-reactive DMX (6 bande)
-│           ├── rs485.h/cpp          ← RS-485 discovery/controllo
-│           ├── storage.h/cpp        ← persistenza NVS (preset, fixture, scene, WLED)
-│           ├── dsp_control.h/cpp    ← controllo DSP CQ260D
-│           ├── dmx512.h/cpp         ← controller DMX512
-│           ├── autotune.h/cpp       ← autotune locale + remoto smartphone
-│           ├── led_ring.h/cpp       ← LED ring WS2812B + encoder rotativi
-│           ├── wled_client.h/cpp    ← WLED neon LED client Wi-Fi
-│           ├── web_server.h/cpp     ← WiFi AP + REST API
-│           └── ui/
-│               ├── ui_home.h/cpp
-│               ├── ui_discovery.h/cpp
-│               ├── ui_assignment.h/cpp
-│               ├── ui_dmx.h/cpp         ← tab DMX LVGL
-│               ├── ui_wled.h/cpp        ← tab Neon WLED LVGL
-│               └── ui_dsp_advanced.h/cpp ← tab DSP avanzato + VU meter LVGL
+│           ├── config.h             ← pin GPIO Slave
+│           ├── ipc_slave.h/cpp      ← Ricevitore comandi IPC
+│           ├── audio_slave.h/cpp    ← I2S Slave RX + FFT 6 bande
+│           ├── dmx512_slave.h/cpp   ← DMX512 output 40Hz
+│           ├── wireless_slave.h/cpp ← ESP-NOW TX broadcast
+│           ├── storage_slave.h/cpp  ← NVS storage completo
+│           └── relay_control.h/cpp  ← Relay + strobo audio-reactive
+└── app/
+    └── flutter/
+        └── ...
+```
+
+
 └── app/
     └── flutter/
         ├── pubspec.yaml
@@ -82,20 +113,36 @@ dsp-control/
                 └── settings_screen.dart
 ```
 
-## Hardware Richiesto
+## Bill of Materials (BOM)
 
-| Componente                    | Quantità |
-|-------------------------------|----------|
-| ESP32-S3-DevKitC-1            | 1        |
-| Display 5" 800×480 touch SPI  | 1        |
-| Codec M5Stack ES8388 (I2S)    | 1        |
-| MAX485 breakout (RS-485)      | 1        |
-| Relay DPDT optoisolato        | 1        |
-| LED ring WS2812B 16 LED       | 2        |
-| Encoder rotativo              | 2        |
-| Modulo PDA1001 con DSP CQ260D integrato | N (uno per cassa) |
+### Componenti Core Dual-ESP32
+
+| Componente | Qt | Note |
+|------------|----|------|
+| ESP32-S3 Display Module UEDX80480050E-WB-A | 1 | Board Master (5" 800×480 RGB, 16MB Flash, 8MB PSRAM) |
+| ESP32-S3-WROOM1-N16R8 Dev Board | 1 | Board Slave (16MB Flash, 8MB PSRAM, connettore IPEX) |
+| Antenna 2.4GHz 3dBi IPEX (U.FL) | 1 | Per ESP32 #2 – range 150-300m |
+| Cavo ribbon 7-pin 2.54mm 30cm | 1 | I2S (3) + UART IPC (2) + GND (1) + +5V opz (1) |
+| Alimentatore 5V 2A | 1 | O 2× alimentatori 5V 1A con GND comune |
+
+### Componenti Audio/Controllo
+
+| Componente | Qt | Note |
+|------------|----|------|
+| Codec ES8388 (I2S ADC/DAC) | 1 | I2C addr 0x10, 24bit, 48kHz |
+| MAX485 o SN65HVD485 (RS-485) | 1 | Per DSP CQ260D su Master |
+| MAX485 o SN65HVD485 (DMX) | 1 | Per DMX512 su Slave (usare versione 3.3V) |
+| GPIO Expander TCA9535 | 1 | I2C addr 0x20, per relay/LED/TOUCH_RST su Master |
+| Relay DPDT optoisolato | 1 | Collegato a TCA9535 P0_0 |
+| LED ring WS2812B 16 LED | 2 | Encoder volume/balance |
+| Encoder rotativo | 2 | Volume e balance |
+| Modulo PDA1001 con DSP CQ260D integrato | N | Uno per cassa amplificata |
+
+Vedere [`docs/WIRING_GUIDE.md`](docs/WIRING_GUIDE.md) per schema completo e collegamenti.
 
 ## Compilazione Firmware
+
+### ESP32 #1 (Master)
 
 ```bash
 cd firmware/esp32
@@ -104,7 +151,18 @@ pio run -e esp32s3 --target upload
 pio device monitor --baud 115200
 ```
 
-Dopo il boot l'ESP32 crea il WiFi AP `SISTEMA_AUDIO_01` (password: `audio1234`).
+### ESP32 #2 (Slave) – NUOVO
+
+```bash
+cd firmware/esp32_slave
+pio run -e esp32s3
+pio run -e esp32s3 --target upload
+pio device monitor --baud 115200
+```
+
+> **Nota**: avviare ESP32 #2 (Slave) **prima** di ESP32 #1 (Master) per la sincronizzazione IPC.
+
+Dopo il boot l'ESP32 #1 crea il WiFi AP `SISTEMA_AUDIO_01` (password: `audio1234`).
 REST API disponibile su `http://192.168.4.1`.
 
 ## Compilazione App Flutter

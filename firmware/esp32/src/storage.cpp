@@ -1,10 +1,14 @@
 #include "storage.h"
+#include "ipc_master.h"
 #include <Preferences.h>
 #include <ArduinoJson.h>
 
 static Preferences s_prefs;
 static const char* NVS_NAMESPACE = "dsp_ctrl";
 static const char* NVS_KEY_ASSIGN = "assignments";
+
+// Flag: true se ESP32 #2 (Slave) ha risposto al ping e il canale IPC è disponibile
+static bool s_ipcAvailable = false;
 
 // Converte SpeakerRole → stringa
 static const char* roleToStr(SpeakerRole role) {
@@ -28,10 +32,19 @@ static SpeakerRole strToRole(const char* s) {
 void storage_init() {
     s_prefs.begin(NVS_NAMESPACE, false);
     Serial.println("[STORAGE] NVS inizializzato");
+
+    // Inizializza IPC verso ESP32 #2 e verifica disponibilità
+    ipc_master_init();
+    s_ipcAvailable = ipc_master_ping(300);
+    if (s_ipcAvailable) {
+        Serial.println("[STORAGE] ESP32 #2 disponibile via IPC – storage delegato");
+    } else {
+        Serial.println("[STORAGE] ESP32 #2 non risponde – fallback su NVS locale");
+    }
 }
 
 void storage_save_assignments(const std::vector<SpeakerAssignment>& assignments) {
-    // Serializza la lista in JSON e salva come stringa NVS
+    // Serializza la lista in JSON
     StaticJsonDocument<4096> doc;
     JsonArray arr = doc.to<JsonArray>();
 
@@ -52,14 +65,45 @@ void storage_save_assignments(const std::vector<SpeakerAssignment>& assignments)
         return;
     }
 
-    s_prefs.putString(NVS_KEY_ASSIGN, buf.c_str());
-    Serial.printf("[STORAGE] Salvate %d assegnazioni\n", (int)assignments.size());
+    // Tenta prima via IPC su ESP32 #2; fallback su NVS locale
+    bool saved = false;
+    if (s_ipcAvailable) {
+        saved = ipc_storage_save_preset(0, buf.c_str(), buf.length());
+        if (!saved) {
+            Serial.println("[STORAGE] IPC fallito, fallback su NVS locale");
+            s_ipcAvailable = false;
+        }
+    }
+    if (!saved) {
+        s_prefs.putString(NVS_KEY_ASSIGN, buf.c_str());
+    }
+
+    Serial.printf("[STORAGE] Salvate %d assegnazioni (%s)\n",
+                  (int)assignments.size(), saved ? "IPC" : "NVS locale");
 }
 
 std::vector<SpeakerAssignment> storage_load_assignments() {
     std::vector<SpeakerAssignment> assignments;
 
-    String json = s_prefs.getString(NVS_KEY_ASSIGN, "[]");
+    String json;
+
+    // Tenta prima via IPC su ESP32 #2; fallback su NVS locale
+    if (s_ipcAvailable) {
+        char buf[4096] = {};
+        size_t len = 0;
+        bool ok = ipc_storage_load_preset(0, buf, sizeof(buf) - 1, len);
+        if (ok && len > 0) {
+            buf[len] = '\0';
+            json = buf;
+        } else {
+            Serial.println("[STORAGE] IPC load fallito, fallback su NVS locale");
+            s_ipcAvailable = false;
+        }
+    }
+    if (json.isEmpty()) {
+        json = s_prefs.getString(NVS_KEY_ASSIGN, "[]");
+    }
+
     if (json.isEmpty() || json == "[]") {
         Serial.println("[STORAGE] Nessuna assegnazione salvata");
         return assignments;
@@ -72,8 +116,8 @@ std::vector<SpeakerAssignment> storage_load_assignments() {
         return assignments;
     }
 
-    JsonArray arr = doc.as<JsonArray>();
-    for (JsonObject obj : arr) {
+    JsonArray jsonArray = doc.as<JsonArray>();
+    for (JsonObject obj : jsonArray) {
         SpeakerAssignment a;
         a.deviceId = obj["deviceId"] | 0;
         a.position = obj["position"] | "";
