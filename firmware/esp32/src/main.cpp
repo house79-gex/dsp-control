@@ -19,6 +19,7 @@
 #include "ui/ui_dsp_advanced.h"
 #include "ui/ui_wled.h"
 #include "led_ring.h"
+#include "encoder.h"
 #include "wireless_tx.h"
 #include "drivers/display_driver.h"
 #include <freertos/FreeRTOS.h>
@@ -163,9 +164,31 @@ void setup() {
     // Inizializzazione WLED client
     wled_client_init();
 
-    // Inizializzazione LED ring e encoder
-    led_ring_init();
+    // Inizializzazione LED ring e encoder (encoder_init chiama led_ring_init internamente)
     encoder_init();
+
+    // Registra callback encoder volume
+    encoder_vol_on_change([](int8_t delta) {
+        Serial.printf("[ENCODER] Volume: %d%% (delta %d)\n", encoder_get_volume(), delta);
+    });
+    encoder_vol_on_button([](bool pressed) {
+        if (pressed) {
+            Serial.println("[ENCODER] Volume button pressed!");
+            led_ring_effect_pulse(255, 0, 0);  // Pulse rosso
+        }
+    });
+
+    // Registra callback encoder balance
+    encoder_bal_on_change([](int8_t delta) {
+        Serial.printf("[ENCODER] Balance: %d (delta %d)\n", encoder_get_balance(), delta);
+    });
+    encoder_bal_on_button([](bool pressed) {
+        if (pressed) {
+            Serial.println("[ENCODER] Balance button pressed! Reset a centro");
+            encoder_set_balance(0);
+            led_ring_effect_pulse(0, 255, 255);  // Pulse ciano
+        }
+    });
 
     // Carica assegnazioni salvate
     g_assignments = storage_load_assignments();
@@ -183,9 +206,9 @@ void setup() {
     }
     audio_set_input_gain(inputGainDb);
 
-    // Carica configurazione sistema
+    // Carica configurazione sistema (sync volume encoder con valore salvato)
     SystemConfig sysCfg = storage_load_system_config();
-    led_ring_set_volume(sysCfg.masterVolume > 0 ? sysCfg.masterVolume : 80);
+    encoder_set_volume(sysCfg.masterVolume > 0 ? sysCfg.masterVolume : 80);
 
     // Carica controller e scene WLED da NVS
     storage_load_wled_controllers();
@@ -230,8 +253,7 @@ void loop() {
     lv_timer_handler();      // Task LVGL (~5ms)
     web_server_handle();     // No-op per ESPAsyncWebServer
     usb_storage_tick();      // Gestione eventi USB
-    encoder_tick();
-    led_ring_update();
+    encoder_tick();          // Processa encoder delta, callback e LED ring update
 
     // Genera tono di test se in modalità TestTone
     if (getAudioMode() == AudioMode::TestTone) {
