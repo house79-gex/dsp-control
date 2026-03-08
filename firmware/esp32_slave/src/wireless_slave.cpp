@@ -63,7 +63,7 @@ uint32_t wireless_slave_get_tx_count() {
 }
 
 int8_t wireless_slave_get_rssi() {
-    // RSSI non direttamente disponibile per TX broadcast su ESP-NOW
-    // Restituisce un placeholder
-    return -70;
+    // RSSI non disponibile per trasmissioni broadcast ESP-NOW
+    // -128 è il valore sentinella per "non disponibile"
+    return -128;
 }

@@ -184,7 +184,9 @@ bool ipc_storage_load_preset(uint8_t slot, void* data, size_t maxLen, size_t& ou
                     memcpy(data, s_lastResponse.payload, outLen);
                     return true;
                 } else {
-                    return true;  // ACK senza dati
+                    // ACK senza dati: nessun dato caricato
+                    outLen = 0;
+                    return false;
                 }
             }
         }

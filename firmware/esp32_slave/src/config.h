@@ -15,6 +15,9 @@
 
 // ——— UART IPC da Master ———
 // Riceve comandi da ESP32 #1 (Master) e invia risposte
+// IMPORTANTE: TX e RX sono INCROCIATI rispetto al Master
+//   Master GPIO17 (TX) → Slave GPIO2 (RX)
+//   Master GPIO18 (RX) ← Slave GPIO1 (TX)
 #define IPC_UART_NUM        1        // UART1
 #define IPC_UART_RX         2        // GPIO2  ← da Master GPIO17 (TX)
 #define IPC_UART_TX         1        // GPIO1  → a Master GPIO18 (RX)

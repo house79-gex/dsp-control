@@ -4,6 +4,11 @@
 static bool s_relayState  = false;
 static bool s_strobeState = false;
 
+// Soglie isteresi per il trigger strobo audio-reactive
+// ON quando bassLevel > kStrobeThreshOn, OFF quando bassLevel < kStrobeThreshOff
+static const float kStrobeThreshOn  = 0.7f;   // 70% della scala 0.0-1.0
+static const float kStrobeThreshOff = 0.5f;   // 50% (isteresi 20%)
+
 void relay_control_init() {
     pinMode(RELAY_GPIO,  OUTPUT);
     pinMode(STROBE_GPIO, OUTPUT);
@@ -32,13 +37,9 @@ bool strobe_get_state() {
 }
 
 bool strobe_trigger_from_bass(float bassLevel) {
-    // Isteresi: ON a 0.7, OFF a 0.5 (evita flicker)
-    const float kThreshOn  = 0.7f;
-    const float kThreshOff = 0.5f;
-
-    if (!s_strobeState && bassLevel > kThreshOn) {
+    if (!s_strobeState && bassLevel > kStrobeThreshOn) {
         strobe_set(true);
-    } else if (s_strobeState && bassLevel < kThreshOff) {
+    } else if (s_strobeState && bassLevel < kStrobeThreshOff) {
         strobe_set(false);
     }
     return s_strobeState;

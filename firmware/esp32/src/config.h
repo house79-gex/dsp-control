@@ -42,8 +42,8 @@
 // Riferimento: SPEC pag.9, GT911 datasheet
 #define TOUCH_SCL       20   // GPIO20 – Touch I2C clock
 #define TOUCH_SDA       19   // GPIO19 – Touch I2C data
-// NOTA: GPIO38 riassegnato a I2S_DOUT (v2.0); TOUCH_RST collegare a expander TCA9535 P1_0
-// NOTA: GPIO18 riassegnato a IPC_UART_RX (v2.0); touch interrupt gestito in polling su GT911
+// v2.0: GPIO38 riassegnato a I2S_DOUT; collegare fisicamente TOUCH_RST a TCA9535 P1_0
+// v2.0: GPIO18 riassegnato a IPC_UART_RX; interrupt touch gestito in polling via GT911
 // Indirizzo I2C GT911: 0x5D (INT=LOW @ reset) oppure 0x14 (INT=HIGH @ reset)
 #define TOUCH_I2C_ADDR  0x5D
 

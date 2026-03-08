@@ -116,8 +116,8 @@ std::vector<SpeakerAssignment> storage_load_assignments() {
         return assignments;
     }
 
-    JsonArray jsonArr = doc.as<JsonArray>();
-    for (JsonObject obj : jsonArr) {
+    JsonArray jsonArray = doc.as<JsonArray>();
+    for (JsonObject obj : jsonArray) {
         SpeakerAssignment a;
         a.deviceId = obj["deviceId"] | 0;
         a.position = obj["position"] | "";
