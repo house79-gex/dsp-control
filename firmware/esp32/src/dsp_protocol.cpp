@@ -36,9 +36,16 @@ uint8_t dsp_calc_checksum(const uint8_t* data, uint8_t length) {
 void dsp_protocol_init() {
     memset(&s_sysReg,    0, sizeof(SysReg));
     memset(&s_levelData, 0, sizeof(DspLevelData));
-    s_rxState = 0;
-    s_rxCnt   = 0;
+    s_rxState  = 0;
+    s_rxCnt    = 0;
+    s_rxMsgLen = 0;
     Serial.println("[DSP_PROTO] Modulo protocollo CQ260D inizializzato");
+}
+
+void dsp_reset_rx_state() {
+    s_rxState  = 0;
+    s_rxCnt    = 0;
+    s_rxMsgLen = 0;
 }
 
 void dsp_command_send(const uint8_t* buf, size_t len, DspId id) {
@@ -221,6 +228,9 @@ bool dsp_connect(DspId id) {
     // 3. Verifica Connected_OK
     // 4. Se connesso, richiede upload parametri (DSP → controller)
     Serial.println("[DSP_PROTO] Avvio sequenza connessione CQ260D...");
+
+    // Ogni nuova connessione parte da uno stato RX pulito
+    dsp_reset_rx_state();
 
     s_status.connected  = false;
     s_status.downloadOk = false;

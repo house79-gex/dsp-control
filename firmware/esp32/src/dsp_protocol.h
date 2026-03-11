@@ -99,3 +99,6 @@ DspLevelData* dsp_get_level_data();
 
 // Calcola il checksum del protocollo: somma di tutti i byte & 0xFF
 uint8_t dsp_calc_checksum(const uint8_t* data, uint8_t length);
+
+// Resetta la state machine RX interna (utile prima di nuove sequenze di connessione/scansione)
+void dsp_reset_rx_state();

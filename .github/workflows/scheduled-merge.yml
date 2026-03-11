@@ -1,0 +1,46 @@
+# Merge automatico: ogni 30 minuti unisce il branch sorgente in main.
+# Modifica SOURCE_BRANCH sotto se usi un branch diverso da "develop".
+
+name: Scheduled merge into main
+
+on:
+  schedule:
+    # Ogni 30 minuti (cron: minuto ora giorno mese giorno_settimana)
+    - cron: '*/30 * * * *'
+  workflow_dispatch:  # Permette avvio manuale da Actions
+
+permissions:
+  contents: write   # Necessario per push su main
+
+jobs:
+  merge-to-main:
+    name: Merge into main
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_BRANCH: develop   # Branch da mergere in main (cambia se necessario)
+      TARGET_BRANCH: main
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}
+        run: |
+          git fetch origin
+          git checkout "${{ env.TARGET_BRANCH }}"
+          git pull origin "${{ env.TARGET_BRANCH }}" || true
+          git merge origin/"${{ env.SOURCE_BRANCH }}" --no-edit -m "Scheduled merge: ${{ env.SOURCE_BRANCH }} → ${{ env.TARGET_BRANCH }}"
+          git push origin "${{ env.TARGET_BRANCH }}"
+        continue-on-error: true  # Non fallisce il workflow in caso di conflitti
+
+      - name: Notify on merge failure
+        if: failure()
+        run: |
+          echo "::warning::Merge fallito (possibili conflitti). Risolvi manualmente su GitHub."
