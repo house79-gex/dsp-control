@@ -7,6 +7,7 @@
 #include <vector>
 
 void storage_init();
+bool storage_ipc_slave_available();
 void storage_save_assignments(const std::vector<SpeakerAssignment>& assignments);
 std::vector<SpeakerAssignment> storage_load_assignments();
 void storage_clear();

@@ -17,7 +17,10 @@ enum class IPCCommand : uint8_t {
     CMD_STORAGE_LOAD_PRESET = 0x11,  // Carica preset DSP
     CMD_STORAGE_SAVE_SCENE  = 0x12,  // Salva scena DMX
     CMD_STORAGE_LOAD_SCENE  = 0x13,  // Carica scena DMX
-    CMD_PING                = 0xF0   // Heartbeat
+    CMD_PING                = 0xF0,
+    CMD_POLL_INPUTS         = 0x20,
+    CMD_SET_LED_RING        = 0x21,
+    CMD_RELAY_SET           = 0x22
 };
 
 // Risposte Slave → Master
@@ -27,7 +30,8 @@ enum class IPCResponse : uint8_t {
     RESP_STATUS_DMX         = 0x82,
     RESP_STATUS_WIRELESS    = 0x83,
     RESP_STORAGE_DATA       = 0x84,
-    RESP_PONG               = 0xF0
+    RESP_PONG               = 0xF0,
+    RESP_INPUT_STATE        = 0x85
 };
 
 #pragma pack(push, 1)

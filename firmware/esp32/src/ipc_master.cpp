@@ -107,7 +107,8 @@ bool ipc_master_wait_ack(uint32_t timeoutMs) {
                     }
 
                     IPCResponse resp = static_cast<IPCResponse>(rxBuf[2]);
-                    if (resp == IPCResponse::RESP_ACK || resp == IPCResponse::RESP_PONG) {
+                    if (resp == IPCResponse::RESP_ACK || resp == IPCResponse::RESP_PONG ||
+                        resp == IPCResponse::RESP_INPUT_STATE) {
                         // Salva l'ultima risposta (payload incluso)
                         s_lastResponse.sync1       = rxBuf[0];
                         s_lastResponse.sync2       = rxBuf[1];
@@ -202,4 +203,27 @@ bool ipc_scene_change(uint8_t sceneIndex) {
         return false;
     }
     return ipc_master_wait_ack(100);
+}
+
+bool ipc_poll_inputs(int8_t& volDelta, int8_t& balDelta, uint8_t& buttons) {
+    if (!ipc_master_send_command(IPCCommand::CMD_POLL_INPUTS, nullptr, 0)) return false;
+    if (!ipc_master_wait_ack(30)) return false;
+    if (s_lastResponse.command != (uint8_t)IPCResponse::RESP_INPUT_STATE || s_lastResponse.payload_len < 3)
+        return false;
+    volDelta  = (int8_t)s_lastResponse.payload[0];
+    balDelta  = (int8_t)s_lastResponse.payload[1];
+    buttons   = s_lastResponse.payload[2];
+    return true;
+}
+
+bool ipc_set_led_ring(uint8_t volPct, int8_t bal) {
+    uint8_t p[2] = { volPct, (uint8_t)(int8_t)constrain((int)bal, -50, 50) };
+    if (!ipc_master_send_command(IPCCommand::CMD_SET_LED_RING, p, 2)) return false;
+    return ipc_master_wait_ack(50);
+}
+
+bool ipc_slave_relay(bool on) {
+    uint8_t p[1] = { on ? (uint8_t)1 : (uint8_t)0 };
+    if (!ipc_master_send_command(IPCCommand::CMD_RELAY_SET, p, 1)) return false;
+    return ipc_master_wait_ack(50);
 }

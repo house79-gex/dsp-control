@@ -7,30 +7,31 @@
 #define RS485_BAUD      115200
 #define RS485_TIMEOUT   100  // ms attesa risposta
 
-// Byte comandi aggiuntivi lato host
-#define CMD_BEEP        0x02
-
 // ======= Funzioni interne DE/RE (driver MAX485) =======
 
 static void rs485_tx_mode() {
+#if RS485_DE_RE >= 0
     digitalWrite(RS485_DE, HIGH);
     digitalWrite(RS485_RE, HIGH);
     delayMicroseconds(10);
+#endif
 }
 
 static void rs485_rx_mode() {
     RS485_UART.flush();
+#if RS485_DE_RE >= 0
     digitalWrite(RS485_DE, LOW);
     digitalWrite(RS485_RE, LOW);
     delayMicroseconds(10);
+#endif
 }
 
-// ======= API pubblica =======
-
 void rs485_init() {
+#if RS485_DE_RE >= 0
     pinMode(RS485_DE, OUTPUT);
     pinMode(RS485_RE, OUTPUT);
     rs485_rx_mode();
+#endif
 
     RS485_UART.begin(RS485_BAUD, SERIAL_8N1, RS485_RX, RS485_TX);
     Serial.println("[RS485] Inizializzato");
@@ -96,17 +97,36 @@ std::vector<SpeakerDevice> rs485_scan_devices() {
     return devices;
 }
 
-void rs485_send_beep(uint8_t id, BeepPattern pattern) {
-    uint8_t count = 0;
+void rs485_send_beep(uint8_t compactId, BeepPattern pattern) {
+    uint8_t count = 1;
     switch (pattern) {
         case BeepPattern::Single: count = 1; break;
         case BeepPattern::Double: count = 2; break;
         case BeepPattern::Triple: count = 3; break;
     }
 
-    // TODO: adattare al comando beep reale del PDA1001/CQ260D
-    uint8_t cmd[4] = { 0xFF, id, CMD_BEEP, count };
-    rs485_send_raw(cmd, sizeof(cmd));
+    /* Il CQ260D non espone un comando "beep" documentato. Identificazione sonora:
+     * impulsi di OutGain (SET_PARAM 0x40, tipo 0x01) → picco udibile sull'amplificatore.
+     * Richiede segnale audio in ingresso al modulo o rumore di fondo per essere percettibile.
+     * Dopo l'impulso si ripristina un gain centrale (~0 dB scala lineare). */
+    DspId dspId;
+    dspId.grp   = (uint8_t)(compactId >> 4);
+    dspId.dspID = (uint16_t)(compactId & 0x0F);
 
-    Serial.printf("[RS485] Beep inviato a ID %d: %d beep\n", id, count);
+    const uint16_t kRestore = 0x8000u; /* ~lineare metà scala → vicino 0 dB */
+    const uint16_t kBoost   = 0xF000u; /* picco verso +12 dB zona */
+
+    Serial.printf("[RS485] Identificazione cassa GRP=%u ID=%u (%d impulsi gain)\n",
+                  (unsigned)dspId.grp, (unsigned)dspId.dspID, count);
+
+    for (uint8_t n = 0; n < count; n++) {
+        uint8_t up[] = { 4, DSP_TXCMD_PARAM_SET, 0x01, 0,
+                         (uint8_t)(kBoost & 0xFF), (uint8_t)(kBoost >> 8) };
+        dsp_command_send(up, sizeof(up), dspId);
+        delay(320);
+        uint8_t down[] = { 4, DSP_TXCMD_PARAM_SET, 0x01, 0,
+                           (uint8_t)(kRestore & 0xFF), (uint8_t)(kRestore >> 8) };
+        dsp_command_send(down, sizeof(down), dspId);
+        delay(180);
+    }
 }

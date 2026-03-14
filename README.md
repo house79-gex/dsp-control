@@ -52,8 +52,20 @@ dsp-control/
 │   └── wled_preview.html    ← Anteprima HTML interfaccia WLED Neon LED (4CH)
 ├── docs/
 │   ├── DUAL_ESP32_INTEGRATION.md  ← Guida integrazione dual-ESP32 (NUOVO)
-│   ├── WIRING_GUIDE.md            ← Cablaggio fisico + BOM (NUOVO)
-│   ├── PINOUT_REFERENCE.md        ← Tabelle pinout complete (NUOVO)
+│   ├── WIRING_GUIDE.md            ← Cablaggio fisico + BOM
+│   ├── SCHEMATICS.md              ← Indice schemi + Mermaid
+│   ├── CABLING_COMPLETE.md        ← Cablaggio completo (aggiornato ai PDF)
+│   ├── DATASHEETS_REFERENCE.md   ← Sintesi UEDX, M144, Pololu, relè, encoder…
+│   ├── hardware/README.md         ← Elenco PDF
+│   ├── schematics_print.html      ← Stampa PDF schemi base
+│   ├── schematics_print_full.html ← Stampa PDF completo UEDX+Slave+RS485+DMX
+│   ├── MASTER_SLAVE_ARCHITECTURE.md ← Slave: encoder, LED, relay, IPC
+│   ├── schematics_electric.html     ← Schema elettrico stile CAD (MAX485, ES8388, …)
+│   ├── schematics_graphic.html      ← Schemi a blocchi SVG
+│   ├── schematics_print_system.html ← Stampa sistema testuale
+│   ├── UEDX_V33_FREE_PINS.md
+│   ├── UEDX_V33_PINOUT_PLAN.md    ← Piano + Slave
+│   ├── PINOUT_REFERENCE.md        ← Tabelle pinout complete
 │   ├── TESTING.md                 ← Procedure test IPC/I2S/DMX (NUOVO)
 │   └── ...altri docs...
 ├── firmware/
@@ -209,9 +221,9 @@ flutter build apk
 | Mappa venue 2D          | ✅ Completo  |
 | App Flutter             | ✅ Completo  |
 | WLED Neon LED client    | ✅ Completo  |
-| RS-485 discovery        | 🔶 Stub      |
-| DSP CQ260D protocollo   | 🔶 Parziale  |
-| LVGL driver display     | 🔶 Stub      |
+| RS-485 discovery        | ✅ Scan reale (dsp_connect) |
+| DSP CQ260D protocollo   | ✅ Frame + SET_PARAM + identif. gain |
+| LVGL + LovyanGFX        | ✅ Driver display (vedi firmware) |
 
 
 Sistema di controllo DSP per impianti audio professionale basato su **ESP32-S3** con catena **RS-485** verso **moduli amplificatori attivi PDA1001 con DSP CQ260D integrato**.

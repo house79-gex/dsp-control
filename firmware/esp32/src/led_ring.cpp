@@ -1,10 +1,18 @@
 #include "led_ring.h"
 #include "config.h"
+#if !USE_SLAVE_PERIPHERALS
 #include <Adafruit_NeoPixel.h>
+#endif
+#if USE_SLAVE_PERIPHERALS
+#include "ipc_master.h"
+#include "storage.h"
+static bool s_slaveLed = false;
+#endif
 
-// ===== Oggetti NeoPixel =====
+#if !USE_SLAVE_PERIPHERALS
 static Adafruit_NeoPixel s_ringVol(LED_RING_COUNT, LED_RING_VOL_PIN, NEO_GRB + NEO_KHZ800);
 static Adafruit_NeoPixel s_ringBal(LED_RING_COUNT, LED_RING_BAL_PIN, NEO_GRB + NEO_KHZ800);
+#endif
 
 // Stato corrente e target (per smooth transition)
 static int  s_volume        = 80;
@@ -22,6 +30,7 @@ static uint32_t s_pulseStart = 0;
 static const uint32_t PULSE_DURATION_MS = 200;
 
 // ===== Utilità colore volume (verde→giallo→rosso) =====
+#if !USE_SLAVE_PERIPHERALS
 static uint32_t volume_to_color(int pct, const Adafruit_NeoPixel& ring) {
     if (pct <= 50) {
         uint8_t r = (uint8_t)(pct * 2 * 255 / 100);
@@ -31,9 +40,13 @@ static uint32_t volume_to_color(int pct, const Adafruit_NeoPixel& ring) {
         return ring.Color(255, g, 0);  // Giallo → Rosso
     }
 }
+#endif
 
-// ===== Init =====
 void led_ring_init() {
+#if USE_SLAVE_PERIPHERALS
+    s_slaveLed = storage_ipc_slave_available();
+#endif
+#if !USE_SLAVE_PERIPHERALS
     s_ringVol.begin();
     s_ringVol.setBrightness(LED_RING_BRIGHTNESS);
     s_ringVol.clear();
@@ -46,6 +59,9 @@ void led_ring_init() {
 
     Serial.printf("[LED_RING] LED ring WS2812B inizializzati (%d LED, brightness %d)\n",
                   LED_RING_COUNT, LED_RING_BRIGHTNESS);
+#else
+    if (s_slaveLed) Serial.println("[LED_RING] Slave IPC");
+#endif
 }
 
 // ===== Set Volume (con smooth transition) =====
@@ -60,7 +76,10 @@ void led_ring_set_balance(int balance) {
 
 // ===== Update Loop (chiamare ogni loop ~5-20ms) =====
 void led_ring_update() {
-    // Effetto pulse (ha priorità sulla visualizzazione normale)
+#if USE_SLAVE_PERIPHERALS
+    if (s_slaveLed) return;
+#endif
+#if !USE_SLAVE_PERIPHERALS
     if (s_pulseActive) {
         uint32_t elapsed = millis() - s_pulseStart;
         if (elapsed >= PULSE_DURATION_MS) {
@@ -137,13 +156,17 @@ void led_ring_update() {
         s_ringBal.show();
     }
     s_forceRedraw = false;
+#endif
 }
 
-// ===== Effetto Pulse (per feedback visivo click encoder button) =====
 void led_ring_effect_pulse(uint8_t r, uint8_t g, uint8_t b) {
+#if USE_SLAVE_PERIPHERALS
+    (void)r; (void)g; (void)b;
+#else
     s_pulseActive = true;
     s_pulseR = r;
     s_pulseG = g;
     s_pulseB = b;
     s_pulseStart = millis();
+#endif
 }

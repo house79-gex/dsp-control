@@ -23,6 +23,19 @@ jobs:
       - name: Build ESP32-S3 firmware
         run: cd firmware/esp32 && pio run -e esp32s3
 
+  build-firmware-slave:
+    name: Firmware Slave Build (ESP32-S3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Build ESP32-S3 slave firmware
+        run: cd firmware/esp32_slave && pio run -e esp32s3
+
   test-firmware:
     name: Firmware Unit Tests (native)
     runs-on: ubuntu-latest

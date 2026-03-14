@@ -89,8 +89,8 @@ src/
 | WLED neon LED client  | ✅ Nuovo     | HTTP JSON API + UDP discovery, task FreeRTOS  |
 | Relay DPDT            | ✅ Reale     | GPIO semplice                                 |
 | I2S ES8388            | ⚠️ Parziale | Init I2C ES8388 da completare                 |
-| RS-485 discovery      | 🔶 Stub      | Da collegare al protocollo CQ260D             |
-| LVGL display driver   | 🔶 Stub      | flush/touch da collegare all'hardware         |
+| RS-485 discovery      | ✅ Scan dsp_connect per GRP/ID                   |
+| LVGL + LovyanGFX      | ✅ UEDX80480050E + GT911 (USE_LOVYAN_GFX)       |
 
 ## Configurazione Pin
 

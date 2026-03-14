@@ -131,10 +131,10 @@ void setup() {
     pinMode(LED_STATUS, OUTPUT);
     digitalWrite(LED_STATUS, HIGH);
 
-    // Inizializzazione moduli core
+    // Storage + IPC prima di audio/encoder (periferiche Slave)
+    storage_init();
     rs485_init();
     audio_init();
-    storage_init();
     dsp_init();
 
     // Inizializzazione DMX512

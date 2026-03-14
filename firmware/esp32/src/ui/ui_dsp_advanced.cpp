@@ -2,6 +2,7 @@
 #include "../dsp_control.h"
 #include "../audio_mode.h"
 #include "../autotune.h"
+#include <string>
 
 static lv_obj_t* s_speakerDropdown = nullptr;
 static lv_obj_t* s_gainLabel = nullptr;
@@ -11,6 +12,52 @@ static lv_obj_t* s_vuLeft = nullptr;
 static lv_obj_t* s_vuRight = nullptr;
 static lv_timer_t* s_vuTimer = nullptr;
 
+/* Indice dropdown: 0=Tutti 1=SX 2=DX 3=SUB 4=Cassa1 5=Cassa2 */
+static void ui_apply_gain_to_selection(int gainDb) {
+    uint16_t idx = s_speakerDropdown ? lv_dropdown_get_selected(s_speakerDropdown) : 0;
+    switch (idx) {
+        case 0:
+            dsp_set_group_gain(DspGroupType::ALL, (float)gainDb);
+            break;
+        case 1:
+            dsp_set_group_gain(DspGroupType::SX, (float)gainDb);
+            break;
+        case 2:
+            dsp_set_group_gain(DspGroupType::DX, (float)gainDb);
+            break;
+        case 3:
+            dsp_set_group_gain(DspGroupType::SUB, (float)gainDb);
+            break;
+        case 4:
+            dsp_set_speaker_gain(0x01, (float)gainDb); /* GRP0 ID1 */
+            break;
+        case 5:
+            dsp_set_speaker_gain(0x02, (float)gainDb);
+            break;
+        default:
+            break;
+    }
+}
+
+static void ui_apply_delay_to_selection(int delayMs) {
+    uint16_t idx = s_speakerDropdown ? lv_dropdown_get_selected(s_speakerDropdown) : 0;
+    if (idx == 0) {
+        for (uint8_t id = 1; id <= 24; id++)
+            dsp_set_speaker_delay(id, (float)delayMs);
+        return;
+    }
+    if (idx == 1)
+        for (uint8_t id = 1; id <= 8; id++) dsp_set_speaker_delay(id, (float)delayMs);
+    else if (idx == 2)
+        for (uint8_t id = 9; id <= 16; id++) dsp_set_speaker_delay(id, (float)delayMs);
+    else if (idx == 3)
+        for (uint8_t id = 17; id <= 20; id++) dsp_set_speaker_delay(id, (float)delayMs);
+    else if (idx == 4)
+        dsp_set_speaker_delay(0x01, (float)delayMs);
+    else if (idx == 5)
+        dsp_set_speaker_delay(0x02, (float)delayMs);
+}
+
 // Callback gain
 static void cb_gain(lv_event_t* e) {
     lv_obj_t* slider = lv_event_get_target(e);
@@ -18,7 +65,7 @@ static void cb_gain(lv_event_t* e) {
     char buf[32];
     snprintf(buf, sizeof(buf), "Gain: %+d dB", val);
     lv_label_set_text(s_gainLabel, buf);
-    // TODO: applicare al device selezionato
+    ui_apply_gain_to_selection(val);
 }
 
 // Callback delay
@@ -28,7 +75,19 @@ static void cb_delay(lv_event_t* e) {
     char buf[32];
     snprintf(buf, sizeof(buf), "Delay: %d ms", val);
     lv_label_set_text(s_delayLabel, buf);
-    // TODO: applicare al device selezionato
+    ui_apply_delay_to_selection(val);
+}
+
+static void cb_preset(lv_event_t* e) {
+    lv_obj_t* dd = lv_event_get_target(e);
+    char buf[48];
+    lv_dropdown_get_selected_str(dd, buf, sizeof(buf));
+    uint16_t idx = s_speakerDropdown ? lv_dropdown_get_selected(s_speakerDropdown) : 0;
+    uint8_t dev = 0xFF;
+    if (idx == 4) dev = 0x01;
+    else if (idx == 5) dev = 0x02;
+    else if (idx >= 1 && idx <= 3) dev = 0xFF;
+    dsp_apply_preset(std::string(buf), dev);
 }
 
 // Callback AutoTune
@@ -123,6 +182,7 @@ void ui_dsp_advanced_create(lv_obj_t* parent) {
     lv_dropdown_set_options(s_presetDropdown, "2WAY_STD\n3WAY_STD\nSUB_STD\nFLAT\nAUTOTUNE");
     lv_obj_set_size(s_presetDropdown, 200, 36);
     lv_obj_align(s_presetDropdown, LV_ALIGN_TOP_LEFT, 80, 250);
+    lv_obj_add_event_cb(s_presetDropdown, cb_preset, LV_EVENT_VALUE_CHANGED, NULL);
 
     // Bottone AutoTune
     lv_obj_t* btnAt = lv_btn_create(parent);

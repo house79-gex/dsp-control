@@ -1,5 +1,9 @@
 #include "audio_mode.h"
 #include "config.h"
+#if USE_SLAVE_PERIPHERALS
+#include "ipc_master.h"
+#include "storage.h"
+#endif
 #include "audio_config.h"
 #include "audio_src.h"
 #include "drivers/ES8388.h"
@@ -39,9 +43,14 @@ static float s_levelRight = 0.0f;
 static bool s_fftInitialized = false;
 
 void audio_init() {
-    // Configura relay in modalità default (MixerPassThrough)
-    pinMode(RELAY_PIN, OUTPUT);
-    digitalWrite(RELAY_PIN, LOW);
+#if USE_SLAVE_PERIPHERALS
+    if (storage_ipc_slave_available()) ipc_slave_relay(false);
+    else
+#endif
+    {
+        pinMode(RELAY_PIN, OUTPUT);
+        digitalWrite(RELAY_PIN, LOW);
+    }
 
     // 1. Inizializza ES8388 via I2C per ottenere il sample rate rilevato
     // Wire.begin() è idempotente su ESP32 – sicuro chiamare più volte.
@@ -90,10 +99,14 @@ void audio_init() {
     // I2S configurato come Master: genera BCLK (GPIO12) e WS (GPIO13)
     // BCLK e WS escono verso ES8388 E verso ESP32 #2 (I2S Slave) in parallelo
     i2s_pin_config_t pin_config = {
-        .bck_io_num   = I2S_BCLK,    // GPIO12 – clock out verso ES8388 + ESP32 #2
-        .ws_io_num    = I2S_WS,      // GPIO13 – word select out verso ES8388 + ESP32 #2
-        .data_out_num = I2S_DOUT,    // GPIO38 – DAC output verso ES8388 DIN
-        .data_in_num  = I2S_DIN      // GPIO11 – ADC input da ES8388 DOUT (condiviso)
+        .bck_io_num   = I2S_BCLK,
+        .ws_io_num    = I2S_WS,
+#if USE_SLAVE_ES8388_DOUT
+        .data_out_num = I2S_PIN_NO_CHANGE, // DOUT da Slave GPIO4 → ES8388
+#else
+        .data_out_num = (gpio_num_t)I2S_DOUT,
+#endif
+        .data_in_num  = I2S_DIN
     };
 
     esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
@@ -123,11 +136,17 @@ void setAudioMode(AudioMode mode) {
     s_currentMode = mode;
 
     if (mode == AudioMode::MixerPassThrough) {
-        // Relay in posizione NC: segnale XLR IN → XLR OUT diretto
+#if USE_SLAVE_PERIPHERALS
+        if (storage_ipc_slave_available()) ipc_slave_relay(false);
+        else
+#endif
         digitalWrite(RELAY_PIN, LOW);
         Serial.println("[AUDIO] Modalità: MixerPassThrough");
     } else {
-        // Relay in posizione NA: DAC ES8388 → XLR OUT
+#if USE_SLAVE_PERIPHERALS
+        if (storage_ipc_slave_available()) ipc_slave_relay(true);
+        else
+#endif
         digitalWrite(RELAY_PIN, HIGH);
         Serial.println("[AUDIO] Modalità: TestTone");
     }

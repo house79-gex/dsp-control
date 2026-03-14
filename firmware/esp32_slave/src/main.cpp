@@ -5,6 +5,7 @@
 #include "wireless_slave.h"
 #include "storage_slave.h"
 #include "relay_control.h"
+#include "slave_peripherals.h"
 
 // Task FreeRTOS: elaborazione audio + FFT su Core 0
 void audio_task(void* pvParameters) {
@@ -42,6 +43,7 @@ void setup() {
     storage_slave_init();
     ipc_slave_init();
     relay_control_init();
+    slave_peripherals_init();
     dmx_slave_init();
     audio_slave_init();
     wireless_slave_init();

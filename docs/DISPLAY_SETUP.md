@@ -13,11 +13,18 @@
 | Alimentazione | 3.3V |
 | Pixel clock | 20MHz (tipico) |
 
-Datasheet: `docs/UEDX80480050E-WB-A-V3.3-SPEC.pdf`
+Datasheet: **`docs/UEDX80480050E-WB-A-V3.3-SPEC.pdf`** (V3.3, 2025-01-08).  
+Sintesi pin J2 + alimentazione: **[`DATASHEETS_REFERENCE.md`](DATASHEETS_REFERENCE.md)**.
+
+| Alimentazione (SPEC) | Valore |
+|----------------------|--------|
+| Tensione | DC **4.0–5.5 V** (tip. **5 V**) |
+| Corrente | ~**300 mA** max backlight; ~150 mA backlight off |
+| Consigliato | **5 V ≥ 1 A** |
 
 ---
 
-## Pinout Completo (da datasheet pag. 6-9)
+## Pinout GPIO (allineato SPEC J2 + `config.h`)
 
 ### Canale Rosso (R0-R4)
 | Segnale | GPIO |
@@ -56,15 +63,23 @@ Datasheet: `docs/UEDX80480050E-WB-A-V3.3-SPEC.pdf`
 | LCD_DE    | 40 | Data enable |
 | LCD_BL_EN |  2 | Backlight enable (PWM) |
 
-### Touch GT911 (I2C)
+### Touch GT911 (I2C) – da SPEC TP
 | Segnale | GPIO | Descrizione |
 |---------|------|------------|
-| TOUCH_SCL | 20 | I2C clock |
-| TOUCH_SDA | 19 | I2C data |
-| TOUCH_RST | 38 | Reset (active LOW) |
-| TOUCH_INT | 18 | Interrupt |
+| TOUCH_SCL | 20 | I2C clock (TP pin 1) |
+| TOUCH_SDA | 19 | I2C data (TP pin 2) |
+| TOUCH_INT | 18 | SPEC: non usato su TP pin 3 |
+| **TOUCH_RST** | **38** | **TP pin 6 – reset GT911** (stesso GPIO usato come **I2S_DOUT** nel firmware → **conflitto hardware** sul PCB UEDX; usare TCA9535 per RST o spostare I2S_DOUT) |
 
 **Indirizzo I2C**: `0x5D` (se INT=LOW durante reset) oppure `0x14` (se INT=HIGH)
+
+### I2S verso codec (SPEC: RTP)
+| GPIO | Nome SPEC | Uso firmware |
+|------|-----------|--------------|
+| 11 | RTP-DIN | I2S DIN ← ADC codec |
+| 12 | RTP-CLK | BCLK |
+| 13 | RTP-DOUT | WS / verso codec (allineato `I2S_WS`) |
+| 38 | CTP-rst **e** I2S_DOUT in firmware | **Verificare PCB** |
 
 ---
 

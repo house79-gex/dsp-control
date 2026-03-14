@@ -92,10 +92,15 @@ static uint16_t ms_to_samples(float delayMs) {
     return audio_ms_to_samples_dsp(delayMs);
 }
 
+// ID compatto da discovery: (grp<<4)|logicalId → DspId protocollo
+static DspId dsp_id_from_compact(uint8_t compactId) {
+    return DspId{ (uint8_t)(compactId >> 4), (uint16_t)(compactId & 0x0F) };
+}
+
 // Invia un parametro singolo al DSP tramite protocollo
 static void send_param(uint8_t deviceId, uint8_t paramCmd, uint8_t channel,
                         uint16_t value) {
-    DspId id = { 0, deviceId };
+    DspId id = dsp_id_from_compact(deviceId);
     uint8_t payload[] = {
         4,                              // Lunghezza payload
         DSP_TXCMD_PARAM_SET,            // Comando imposta parametro
@@ -151,8 +156,9 @@ void dsp_apply_preset(const std::string& presetName, uint8_t deviceId) {
     // Copia i parametri nel SYSREG locale
     memcpy(dsp_get_sysreg(), &preset->parameters, sizeof(SysReg));
 
-    // Scarica parametri al DSP
-    DspId id = { 0, deviceId };
+    DspId id = (deviceId == 0xFF)
+                   ? DspId{ 0, 0xFFFF }
+                   : dsp_id_from_compact(deviceId);
     dsp_download_parameters(id);
 }
 

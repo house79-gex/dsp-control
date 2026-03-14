@@ -39,21 +39,29 @@
 #define LCD_BL_EN  2  // GPIO2  – Backlight enable (PWM, HIGH=on)  (SPEC pag.9)
 
 // ——— Touch GT911 (I2C) ———
-// Riferimento: SPEC pag.9, GT911 datasheet
+// UEDX V3.3 SPEC: GPIO38 = TP pin 6 (reset CTP). Per usare GPIO38 anche come I2S_DOUT
+// serve spostare RST su TCA9535. Altrimenti USE_SLAVE_ES8388_DOUT=1 e DOUT da Slave GPIO4.
 #define TOUCH_SCL       20   // GPIO20 – Touch I2C clock
 #define TOUCH_SDA       19   // GPIO19 – Touch I2C data
-// v2.0: GPIO38 riassegnato a I2S_DOUT; collegare fisicamente TOUCH_RST a TCA9535 P1_0
-// v2.0: GPIO18 riassegnato a IPC_UART_RX; interrupt touch gestito in polling via GT911
+// Reset touch: ideale TCA9535 P1_0 (libera GPIO38 per I2S se cablato così)
 // Indirizzo I2C GT911: 0x5D (INT=LOW @ reset) oppure 0x14 (INT=HIGH @ reset)
 #define TOUCH_I2C_ADDR  0x5D
 
-// ——— I2S ES8388 (Master Mode – genera BCLK/WS) ———
-// BCLK e WS escono da ESP32 #1 verso ES8388 E verso ESP32 #2 (I2S Slave)
-#define I2S_BCLK    12   // GPIO12 – Bit Clock out → ES8388 + ESP32 #2 GPIO5
-#define I2S_WS      13   // GPIO13 – Word Select out → ES8388 + ESP32 #2 GPIO6
-#define I2S_DIN     11   // GPIO11 – Data In ← ES8388 DOUT (condiviso con ESP32 #2)
-#define I2S_DOUT    38   // GPIO38 – Data Out → ES8388 DIN (DAC playback)
-#define I2S_MCLK    -1   // Non usato (ES8388 usa BCLK come riferimento clock)
+// ——— I2S ES8388 (UEDX V3.3 – solo pin liberi con display ON + NO SD) ———
+// SPEC: GPIO38 = reset GT911 (TP); GPIO10 = SD-CS → LIBERO se non usi SD → I2S_DOUT su 10
+// SPEC: GPIO17/18 = "not used" → IPC. Opzionale: DOUT da Slave se USE_SLAVE_ES8388_DOUT=1
+#ifndef USE_SLAVE_ES8388_DOUT
+#define USE_SLAVE_ES8388_DOUT  0
+#endif
+#define I2S_BCLK    12   // RTP-CLK
+#define I2S_WS      13   // RTP-DOUT
+#define I2S_DIN     11   // RTP-DIN ← ES8388 ASDOUT
+#if USE_SLAVE_ES8388_DOUT
+#define I2S_DOUT    (-1) // Slave GPIO4 → ES8388 DSDIN
+#else
+#define I2S_DOUT    10   // ex SD-CS – verso ES8388 DSDIN (NO scheda SD)
+#endif
+#define I2S_MCLK    -1
 
 // ——— UART IPC verso ESP32 #2 (Slave) ———
 // Protocollo binario con sync+CRC8; vedere ipc_master.h per il protocollo
@@ -63,11 +71,16 @@
 #define IPC_UART_BAUD   115200   // Baudrate IPC
 
 // ——— RS-485 DSP CQ260D ———
-// UART2; DE e RE uniti su singolo GPIO (HIGH=TX, LOW=RX)
-#define RS485_UART_NUM  2    // UART2
-#define RS485_TX        43   // GPIO43 – UART2 TX
-#define RS485_RX        44   // GPIO44 – UART2 RX
-#define RS485_DE_RE     10   // GPIO10 – DE+RE uniti (HIGH=trasmissione, LOW=ricezione)
+// GPIO10 = I2S_DOUT se no SD → DE non su 10. Usa transceiver RS485 auto-direzionale (senza DE)
+// oppure -1 e ponticella DE su Slave (vedi docs/UEDX_V33_FREE_PINS.md)
+#define RS485_UART_NUM  2
+#define RS485_TX        43
+#define RS485_RX        44
+#ifndef RS485_DE_RE
+#define RS485_DE_RE     (-1)   // -1 = modulo auto-RS485 (DE/RE interni)
+#endif
+#define RS485_DE        RS485_DE_RE
+#define RS485_RE        RS485_DE_RE
 
 // ——— DMX512 ———
 // Spostato su ESP32 #2 (Slave); non più su Master per liberare GPIO e CPU
@@ -83,6 +96,11 @@
 // Alias per compatibilità (usa valori TCA9535 virtuale via I2C)
 #define RELAY_PIN   TCA9535_RELAY_PIN
 #define LED_STATUS  TCA9535_LED_STATUS
+
+// Encoder + LED sullo Slave (Master solo IPC – libera GPIO UEDX)
+#ifndef USE_SLAVE_PERIPHERALS
+#define USE_SLAVE_PERIPHERALS  1
+#endif
 
 // WiFi AP
 #define WIFI_SSID   "SISTEMA_AUDIO_01"

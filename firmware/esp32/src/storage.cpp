@@ -29,6 +29,8 @@ static SpeakerRole strToRole(const char* s) {
     return SpeakerRole::MONO;
 }
 
+bool storage_ipc_slave_available() { return s_ipcAvailable; }
+
 void storage_init() {
     s_prefs.begin(NVS_NAMESPACE, false);
     Serial.println("[STORAGE] NVS inizializzato");

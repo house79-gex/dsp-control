@@ -1,6 +1,11 @@
 #include "encoder.h"
 #include "config.h"
 #include "led_ring.h"
+#if USE_SLAVE_PERIPHERALS
+#include "ipc_master.h"
+#include "storage.h"
+#endif
+static bool s_useSlaveEnc = false;
 
 // ===== Stato encoder volume =====
 static volatile int32_t s_encVolISRDelta = 0;
@@ -77,7 +82,15 @@ static void IRAM_ATTR isr_bal_button() {
 
 // ===== Init =====
 void encoder_init() {
-    // Configura GPIO encoder volume
+#if USE_SLAVE_PERIPHERALS
+    s_useSlaveEnc = storage_ipc_slave_available();
+    if (s_useSlaveEnc) {
+        led_ring_init();
+        ipc_set_led_ring((uint8_t)s_volValue, (int8_t)s_balValue);
+        Serial.println("[ENCODER] Periferiche su Slave (IPC)");
+        return;
+    }
+#endif
     pinMode(ENCODER_VOL_A,   INPUT_PULLUP);
     pinMode(ENCODER_VOL_B,   INPUT_PULLUP);
     pinMode(ENCODER_VOL_BTN, INPUT_PULLUP);
@@ -110,7 +123,27 @@ void encoder_init() {
 
 // ===== Tick – processa delta ISR e chiama callback (sicuro fuori da ISR) =====
 void encoder_tick() {
-    // Leggi e azzera delta ISR atomicamente
+#if USE_SLAVE_PERIPHERALS
+    if (s_useSlaveEnc) {
+        int8_t vd, bd;
+        uint8_t btn;
+        if (ipc_poll_inputs(vd, bd, btn)) {
+            if (vd) {
+                s_volValue = constrain(s_volValue + vd, 0, 100);
+                ipc_set_led_ring((uint8_t)s_volValue, (int8_t)s_balValue);
+                if (s_volChangeCb) s_volChangeCb(vd > 0 ? 1 : -1);
+            }
+            if (bd) {
+                s_balValue = constrain(s_balValue + bd, -50, 50);
+                ipc_set_led_ring((uint8_t)s_volValue, (int8_t)s_balValue);
+                if (s_balChangeCb) s_balChangeCb(bd > 0 ? 1 : -1);
+            }
+            if (btn & 1) { if (s_volButtonCb) s_volButtonCb(true); }
+            if (btn & 2) { encoder_set_balance(0); if (s_balButtonCb) s_balButtonCb(true); }
+        }
+        return;
+    }
+#endif
     noInterrupts();
     int32_t volDelta = s_encVolISRDelta;
     int32_t balDelta = s_encBalISRDelta;
@@ -176,9 +209,15 @@ int encoder_get_balance() { return s_balValue; }
 void encoder_set_volume(int vol) {
     s_volValue = constrain(vol, 0, 100);
     led_ring_set_volume(s_volValue);
+#if USE_SLAVE_PERIPHERALS
+    if (s_useSlaveEnc) ipc_set_led_ring((uint8_t)s_volValue, (int8_t)s_balValue);
+#endif
 }
 
 void encoder_set_balance(int bal) {
     s_balValue = constrain(bal, -50, 50);
     led_ring_set_balance(s_balValue);
+#if USE_SLAVE_PERIPHERALS
+    if (s_useSlaveEnc) ipc_set_led_ring((uint8_t)s_volValue, (int8_t)s_balValue);
+#endif
 }

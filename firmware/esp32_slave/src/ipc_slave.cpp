@@ -2,6 +2,7 @@
 #include "config.h"
 #include "storage_slave.h"
 #include "dmx512_slave.h"
+#include "slave_peripherals.h"
 
 // CRC8 (polynomial 0x07, init 0x00) – identico all'implementazione Master
 static uint8_t crc8_compute(const uint8_t* data, size_t len) {
@@ -84,8 +85,26 @@ void ipc_slave_process() {
 
                 rxIdx = 0;  // Reset buffer per prossimo frame
 
-                // Processa comando
+                slave_peripherals_poll();
                 switch (static_cast<IPCCommand>(frame.command)) {
+                    case IPCCommand::CMD_POLL_INPUTS: {
+                        int8_t vd, bd;
+                        uint8_t btn;
+                        slave_peripherals_get_state(vd, bd, btn);
+                        uint8_t pl[3] = { (uint8_t)vd, (uint8_t)bd, btn };
+                        ipc_slave_send_response(IPCResponse::RESP_INPUT_STATE, pl, 3);
+                        break;
+                    }
+                    case IPCCommand::CMD_SET_LED_RING:
+                        if (frame.payload_len >= 2)
+                            slave_peripherals_set_led(frame.payload[0], (int8_t)frame.payload[1]);
+                        ipc_slave_send_response(IPCResponse::RESP_ACK, nullptr, 0);
+                        break;
+                    case IPCCommand::CMD_RELAY_SET:
+                        if (frame.payload_len >= 1)
+                            slave_peripherals_set_relay(frame.payload[0] != 0);
+                        ipc_slave_send_response(IPCResponse::RESP_ACK, nullptr, 0);
+                        break;
                     case IPCCommand::CMD_PING:
                         ipc_slave_send_response(IPCResponse::RESP_PONG, nullptr, 0);
                         break;

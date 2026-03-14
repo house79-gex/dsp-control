@@ -35,10 +35,13 @@ static float magnitude_band(const float* fftData, float freqLow, float freqHigh)
 }
 
 void audio_slave_init() {
-    // Configura I2S come Slave RX-only
-    // BCLK e WS ricevuti dal Master (non generati da questo ESP32)
+    // Slave RX (+ TX su GPIO4 se SLAVE_DRIVES_ES8388_DOUT → filo verso ES8388 DSDIN)
+    i2s_mode_t mode = (i2s_mode_t)(I2S_MODE_SLAVE | I2S_MODE_RX);
+#if SLAVE_DRIVES_ES8388_DOUT
+    mode = (i2s_mode_t)(mode | I2S_MODE_TX);
+#endif
     i2s_config_t cfg = {
-        .mode             = (i2s_mode_t)(I2S_MODE_SLAVE | I2S_MODE_RX),
+        .mode             = mode,
         .sample_rate      = 48000,
         .bits_per_sample  = I2S_BITS_PER_SAMPLE_16BIT,
         .channel_format   = I2S_CHANNEL_FMT_RIGHT_LEFT,
@@ -46,16 +49,24 @@ void audio_slave_init() {
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
         .dma_buf_count    = 8,
         .dma_buf_len      = 256,
-        .use_apll         = false,   // Slave non genera clock
+        .use_apll         = false,
+#if SLAVE_DRIVES_ES8388_DOUT
+        .tx_desc_auto_clear = true,
+#else
         .tx_desc_auto_clear = false,
+#endif
         .fixed_mclk       = 0
     };
 
     i2s_pin_config_t pin_cfg = {
-        .bck_io_num       = I2S_BCLK_IN,           // GPIO5 ← da Master
-        .ws_io_num        = I2S_WS_IN,             // GPIO6 ← da Master
-        .data_out_num     = I2S_PIN_NO_CHANGE,      // Non usa DAC
-        .data_in_num      = I2S_DIN                 // GPIO7 ← ES8388 (parallelo con Master)
+        .bck_io_num   = I2S_BCLK_IN,
+        .ws_io_num    = I2S_WS_IN,
+#if SLAVE_DRIVES_ES8388_DOUT
+        .data_out_num = (gpio_num_t)I2S_DOUT_TO_ES8388_PIN,
+#else
+        .data_out_num = I2S_PIN_NO_CHANGE,
+#endif
+        .data_in_num  = I2S_DIN
     };
 
     esp_err_t err = i2s_driver_install(I2S_NUM_0, &cfg, 0, NULL);
@@ -75,13 +86,24 @@ void audio_slave_init() {
         s_window[i] = 0.5f * (1.0f - cosf(2.0f * M_PI * i / (FFT_SIZE - 1)));
     }
 
-    Serial.printf("[AUDIO_SLAVE] I2S Slave RX configurato (BCLK=GPIO%d, WS=GPIO%d, DIN=GPIO%d)\n",
+    Serial.printf("[AUDIO_SLAVE] I2S Slave RX configurato (BCLK=%d WS=%d DIN=%d",
                   I2S_BCLK_IN, I2S_WS_IN, I2S_DIN);
+#if SLAVE_DRIVES_ES8388_DOUT
+    Serial.printf(" DOUT→ES8388=GPIO%d)\n", I2S_DOUT_TO_ES8388_PIN);
+#else
+    Serial.println(")");
+#endif
 }
 
 void audio_slave_process_fft() {
     size_t bytesRead = 0;
     i2s_read(I2S_NUM_0, s_audioBuf, sizeof(s_audioBuf), &bytesRead, pdMS_TO_TICKS(10));
+#if SLAVE_DRIVES_ES8388_DOUT
+    // Mantieni bus DAC valido (silenzio se Master non invia tono via IPC)
+    static int16_t s_zero[FFT_SIZE * 2];
+    size_t w = 0;
+    i2s_write(I2S_NUM_0, s_zero, sizeof(s_zero), &w, 0);
+#endif
     if (bytesRead < sizeof(s_audioBuf)) return;
 
     // Calcola peak

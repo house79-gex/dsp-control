@@ -147,6 +147,10 @@ Offset  Campo        Descrizione
 | 0x40   | 64   | SET_PARAM         | `[4, 0x40, paramType, channel, val_L, val_H]` | –            |
 | 0x80   | 128  | LEVEL_REQUEST     | `[1, 0x80]`                               | CMD_LEVEL_DISPLAY|
 
+### Identificazione cassa (host)
+
+Non è documentato un comando “beep” dedicato. L’host può inviare **SET_PARAM (0x40)** sul tipo gain uscita (**0x01**) con valore alto per ~300 ms e poi ripristino, per generare impulsi udibili sul modulo (con segnale in ingresso). Il firmware `rs485_send_beep()` usa questa strategia.
+
 ---
 
 ## 5. Risposte RX – Tabella Completa

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <title>DSP Control – Schemi stampabili completi (UEDX V3.3 + Slave)</title>
+  <style>
+    @media print {
+      .no-print { display: none; }
+      .pagebreak { page-break-before: always; }
+      body { font-size: 10pt; }
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 920px; margin: 16px auto; color: #111; line-height: 1.35; }
+    h1 { border-bottom: 2px solid #000; font-size: 16pt; }
+    h2 { font-size: 12pt; margin-top: 1.2em; background: #eee; padding: 4px 8px; }
+    table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 9pt; }
+    th, td { border: 1px solid #333; padding: 5px 6px; text-align: left; }
+    th { background: #ddd; }
+    pre { background: #f5f5f5; border: 1px solid #999; padding: 10px; font-size: 8pt; overflow: hidden; white-space: pre-wrap; }
+    .box { border: 2px solid #000; padding: 12px; margin: 10px 0; }
+    caption { font-weight: bold; text-align: left; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+  <p class="no-print"><button onclick="window.print()">Stampa / Salva PDF</button></p>
+  <h1>DSP Control – Schemi e pinout (UEDX V3.3 + ESP32 Slave)</h1>
+  <p><strong>Documento:</strong> piano pinout senza conflitto GPIO38 · <code>docs/UEDX_V33_PINOUT_PLAN.md</code></p>
+
+  <h2>1. UEDX V3.3 – Solo 3 GPIO liberi (SPEC + NO SD)</h2>
+  <table>
+    <tr><th>GPIO</th><th>Motivo libero</th><th>Uso firmware</th></tr>
+    <tr><td>10</td><td>Era SD-CS – senza SD libero</td><td><b>I2S DOUT → ES8388 DSDIN</b></td></tr>
+    <tr><td>17</td><td>Datasheet "Not used"</td><td>IPC TX → Slave</td></tr>
+    <tr><td>18</td><td>Datasheet free / INT TP unused</td><td>IPC RX ← Slave</td></tr>
+    <tr><td>38</td><td>—</td><td><b>Solo reset GT911</b> (non DOUT)</td></tr>
+  </table>
+  <p><b>RS485:</b> nessun GPIO per DE → modulo <b>auto-direzionale</b> oppure DE su Slave.</p>
+
+  <h2>2. Strategia B – DAC dallo Slave (se usi MAX485 classico su GPIO10)</h2>
+  <div class="box">
+    <pre>
+    MASTER (UEDX)          SLAVE                    ES8388
+    GPIO12 BCLK ───┬──────► GPIO5 BCLK in ───┬──────► SCLK
+    GPIO13 WS  ───┼──────► GPIO6 WS in   ───┤──────► LRCK
+    GPIO11 DIN ◄──┴── fan-out ── GPIO7 DIN ◄┴──────  ASDOUT
+                              GPIO4 DOUT ─────────► DSDIN  (UN FILO NUOVO)
+    Build: Master USE_SLAVE_ES8388_DOUT=1   Slave SLAVE_DRIVES_ES8388_DOUT=1
+    </pre>
+  </div>
+
+  <div class="pagebreak"></div>
+  <h2>3. Tabella Master UEDX J2 (da SPEC V3.3)</h2>
+  <table>
+    <tr><th>GPIO</th><th>Uso display / sistema</th></tr>
+    <tr><td>11</td><td>I2S DIN (RTP-DIN)</td></tr>
+    <tr><td>12</td><td>I2S BCLK</td></tr>
+    <tr><td>13</td><td>I2S WS</td></tr>
+    <tr><td>17</td><td>IPC TX → Slave</td></tr>
+    <tr><td>18</td><td>IPC RX ← Slave</td></tr>
+    <tr><td>19–20</td><td>Touch SDA/SCL</td></tr>
+    <tr><td>38</td><td>Strategia A: DOUT · Strategia B: solo RST touch (TP)</td></tr>
+    <tr><td>43–44</td><td>RS485 UART → MAX485</td></tr>
+    <tr><td>10</td><td>RS485 DE/RE</td></tr>
+    <tr><td>35–37, 33–34, 26–28</td><td>Encoder + LED ring</td></tr>
+    <tr><td>Altri 1–48</td><td>RGB LCD (occupati)</td></tr>
+  </table>
+
+  <h2>4. Tabella Slave – pin assegnati e liberi</h2>
+  <table>
+    <tr><th>GPIO</th><th>Funzione</th></tr>
+    <tr><td>1</td><td>IPC TX</td></tr>
+    <tr><td>2</td><td>IPC RX</td></tr>
+    <tr><td>4</td><td>I2S DOUT → ES8388 (Strategia B)</td></tr>
+    <tr><td>5–7</td><td>I2S BCLK/WS/DIN</td></tr>
+    <tr><td>8–9</td><td>DMX TX / DE</td></tr>
+    <tr><td>10–11</td><td>Relay / Strobo</td></tr>
+    <tr><td>3, 12–48</td><td>Liberi (espansioni)</td></tr>
+  </table>
+
+  <div class="pagebreak"></div>
+  <h2>5. RS-485 DSP (Master) → RJ45</h2>
+  <pre>
+  Master GPIO43 → MAX485 DI      MAX485 A ──┬── RJ45 pin 4 (es.)
+  Master GPIO44 ← MAX485 RO      MAX485 B ──┼── RJ45 pin 5
+  Master GPIO10 → DE+/RE-        GND ───────┴── pin 1–2
+  </pre>
+
+  <h2>6. DMX (Slave) → XLR</h2>
+  <pre>
+  Slave GPIO8 → MAX485#2 DI   A → XLR3   B → XLR2   GND → XLR1
+  Slave GPIO9 → DE (HIGH)
+  </pre>
+
+  <h2>7. Alimentazione Pololu #5398</h2>
+  <pre>
+  Jack+ → VIN1    RJ45 V+ moduli → VIN2    GND comune
+  VOUT → Buck 5V ≥3A → UEDX 5V (1A consigliati SPEC)
+  </pre>
+
+  <h2>8. Dual-ESP32 – 7 fili</h2>
+  <table>
+    <tr><th>Master</th><th>Slave</th><th>Segnale</th></tr>
+    <tr><td>12</td><td>5</td><td>BCLK</td></tr>
+    <tr><td>13</td><td>6</td><td>WS</td></tr>
+    <tr><td>ES8388 DOUT</td><td>7</td><td>DIN</td></tr>
+    <tr><td>17</td><td>2</td><td>UART TX→RX</td></tr>
+    <tr><td>18</td><td>1</td><td>UART RX←TX</td></tr>
+    <tr><td>GND</td><td>GND</td><td></td></tr>
+  </table>
+
+  <p style="margin-top:24px;font-size:9pt;color:#444;">
+    Firmware: <code>USE_SLAVE_ES8388_DOUT</code> (Master config.h) ·
+    <code>SLAVE_DRIVES_ES8388_DOUT</code> (Slave config.h) ·
+    PlatformIO: <code>-D USE_SLAVE_ES8388_DOUT=1</code> su entrambi i target se serve Strategia B.
+  </p>
+</body>
+</html>
