@@ -1,6 +1,6 @@
-# Indice reverse_data - 7 parti
+# Indice reverse_data – 7 parti (archivio)
 
-File originale: `reverse _data.md` (2.42 MB)
+File originale: `reverse_data.md` (circa 2.42 MB) – **non incluso nel repository** (generato da `split_reverse_data.py` dalla root del progetto). Queste parti sono archivio per reverse engineering protocollo CQ260D.
 
 | # | File | Dimensione | Caratteri |
 |---|------|-----------|----------|

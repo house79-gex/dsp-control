@@ -2,36 +2,15 @@
 
 ## Obiettivo
 
-Sistema di controllo DSP professionale per impianti audio live basato su ESP32-S3.
-Gestisce DSP CQ260D via RS-485, codec audio ES8388, display touch 5" e luci DMX512.
+Sistema di controllo DSP professionale per impianti audio live. **Architettura attuale: Dual-ESP32-S3** (Master + Slave). Gestisce DSP CQ260D via RS-485, codec ES8388, display touch 5" UEDX, luci DMX512, WLED, AutoTune, app Flutter.
 
-## Architettura Hardware
+Per diagrammi e dettagli vedi **[ARCHITECTURE.md](ARCHITECTURE.md)** e **[README.md](README.md)**.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     ESP32-S3 (240MHz)                   │
-│                   8MB PSRAM + 16MB Flash                │
-│                                                         │
-│  ┌──────────┐   ┌──────────┐   ┌──────────────────────┐│
-│  │ ES8388   │   │ Display  │   │     WiFi / BLE       ││
-│  │ ADC/DAC  │   │ 800×480  │   │   REST API / OTA     ││
-│  │ 44.1kHz  │   │ RGB Touch│   └──────────────────────┘│
-│  └────┬─────┘   └────┬─────┘                           │
-│  I2S/I2C        RGB+GT911                               │
-└───────┼──────────────┼─────────────────────────────────┘
-        │              │
-    ┌───┴───┐      ┌────┴────┐
-    │SC LIVE│      │ Operatore│
-    │  4    │      │ touch UI │
-    └───────┘      └─────────┘
-        │
-    ┌───┴────────────────────────────────┐
-    │         RS-485 Bus (115200 baud)   │
-    │  DSP CQ260D ×N (@ 48kHz fisso)    │
-    │  ↓ delay/EQ/crossover/compressor  │
-    │  Speaker Array (casse + sub)       │
-    └────────────────────────────────────┘
-```
+## Architettura hardware (sintesi)
+
+- **ESP32 #1 (Master)**: Display UEDX 800×480, ES8388 I2S, RS-485 CQ260D, WiFi AP, REST API, IPC verso Slave.
+- **ESP32 #2 (Slave)**: I2S RX, FFT 6 bande, DMX512 out, ESP-NOW, NVS storage, encoder/LED ring/relay (periferiche).
+- Bus RS-485 115200 baud verso DSP CQ260D ×N (@ 48kHz fisso).
 
 ## Stack Software
 
@@ -43,8 +22,8 @@ Gestisce DSP CQ260D via RS-485, codec audio ES8388, display touch 5" e luci DMX5
 | Audio | ESP-DSP + ES8388 driver |
 | Storage | NVS (Preferences) |
 | Network | AsyncWebServer + REST |
-| Light | DMX512 (UART1) |
-| Wireless | ESP-NOW (audio RX) |
+| Light | DMX512 (Slave), WLED HTTP/UDP |
+| Wireless | ESP-NOW (Slave), WiFi AP (Master) |
 
 ## Quick Start
 
@@ -84,22 +63,4 @@ pio test -e native
 
 ## Struttura Repository
 
-```
-firmware/esp32/src/
-├── config.h              # Pin ESP32-S3, costanti audio
-├── main.cpp              # Entry point, init sequenza
-├── audio_config.h/.cpp   # Sistema audio adattivo multi-SR
-├── audio_src.h/.cpp      # Sample Rate Converter (44.1k→48k)
-├── audio_protection.h/.cpp # DC block, HPF, limiter, soft clip
-├── audio_delay_buffer.h/.cpp # Delay buffer PSRAM (max 100ms)
-├── audio_mode.h/.cpp     # Gestione modalità audio + FFT
-├── dsp_control.h/.cpp    # Controllo DSP CQ260D
-├── dsp_protocol.h/.cpp   # Protocollo RS-485 CQ260D
-├── dsp_registers.h       # Struttura SYSREG DSP
-├── display/
-│   └── lvgl_display.h/.cpp # LovyanGFX per UEDX80480050E-WB-A
-├── drivers/
-│   ├── ES8388.h/.cpp     # Driver codec ES8388
-│   └── display_driver.h/.cpp
-└── ...
-```
+Albero completo in **[README.md](README.md)**. In sintesi: `firmware/esp32/` (Master), `firmware/esp32_slave/` (Slave), `app/flutter/`, `docs/`, `web/`. Master `src/`: config.h, main.cpp, ipc_master, audio_*, storage, rs485, dsp_control, autotune, wled_client, web_server, ui/, display/, drivers/.

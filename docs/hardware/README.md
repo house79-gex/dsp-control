@@ -1,10 +1,10 @@
-# Cartella `docs/hardware/` – schematici aggiuntivi
+# Cartella `docs/hardware/` – schematici e datasheet
 
-I PDF principali sono in **`docs/`** (root):
+I PDF sotto elencati **non sono inclusi nel repository** (copyright/ dimensione). Vanno ottenuti dai fornitori o dalla documentazione ufficiale e, se necessario, conservati in locale (es. in `docs/` o in questa cartella).
 
-| File in `docs/` | Contenuto |
+| File (esterno) | Contenuto |
 |-----------------|-----------|
-| **UEDX80480050E-WB-A-V3.3-SPEC.pdf** | Display 5" + ESP32-S3 |
+| **UEDX80480050E-WB-A-V3.3-SPEC.pdf** | Display 5" + ESP32-S3 (UEDX) |
 | **M144_sch_moduleaudio_v10.pdf** | Modulo M5 audio ES8388 |
 | **ES8388.pdf** | Datasheet codec |
 | **Relè Module interface.pdf** | Pin relè |
@@ -13,4 +13,4 @@ I PDF principali sono in **`docs/`** (root):
 | **MAX485.pdf** | RS-485 |
 | **Led Ring WS2811.pdf** | Anello LED |
 
-Sintesi cablaggio da questi file: **`docs/DATASHEETS_REFERENCE.md`** e **`docs/CABLING_COMPLETE.md`**.
+Sintesi cablaggio e pin ricavati da questi PDF: **`docs/DATASHEETS_REFERENCE.md`** e **`docs/CABLING_COMPLETE.md`**.

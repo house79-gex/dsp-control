@@ -101,4 +101,4 @@ Sconsigliato se non necessario (latency IPC).
 | Puoi spostare **RST touch** su **TCA9535** | **Strategia A** – firmware Master attuale |
 | Touch deve restare su **GPIO38** | **Strategia B** – filo **Slave GPIO4** → ES8388 DSDIN + build con `USE_SLAVE_ES8388_DOUT` |
 
-Vedi anche **`schematics_print_full.html`** per diagrammi stampabili.
+Vedi anche **`SCHEMATIC_DSP_CONNECTIONS.html`** per diagrammi stampabili.

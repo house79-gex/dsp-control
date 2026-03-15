@@ -315,8 +315,8 @@ Inserisci lo **schematico Atomstack** nella cartella `docs/hardware/` (PDF) e ag
 | `docs/WIRING_GUIDE.md` | Dual-ESP32 7 fili |
 | `docs/PINOUT_REFERENCE.md` | GPIO Master/Slave |
 | `docs/DISPLAY_SETUP.md` | Display + touch + UEDX SPEC |
-| `docs/SCHEMATICS.md` | Indice + PNG |
-| `docs/schematics_print.html` | Stampa PDF |
+| `docs/SCHEMATICS.md` | Indice + link schema HTML |
+| `docs/SCHEMATIC_DSP_CONNECTIONS.html` | Schemi completi stampabili |
 | `firmware/esp32/src/config.h` | Pin firmware Master |
 | PDF in `docs/*.pdf` | Fonte originale |
 

@@ -43,4 +43,4 @@ Tutto il resto è sullo **Slave**: encoder, LED ring, relay audio, DMX, FFT, wir
 - Master: `USE_SLAVE_PERIPHERALS=1` (default in `config.h`)
 - Slave: `SLAVE_HAS_ENCODERS_LED=1`, NeoPixel in `platformio.ini`
 
-Stampa: **`docs/schematics_print_system.html`**
+Stampa: **`docs/SCHEMATIC_DSP_CONNECTIONS.html`**
