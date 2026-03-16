@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <title>DSP Control – Schemi collegamento (stampa)</title>
+  <style>
+    @media print { .no-print { display: none; } body { font-size: 11pt; } }
+    body { font-family: Segoe UI, Arial, sans-serif; max-width: 900px; margin: 24px auto; color: #111; line-height: 1.45; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    h2 { margin-top: 1.4em; color: #222; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    th, td { border: 1px solid #999; padding: 8px 10px; text-align: left; }
+    th { background: #f0f0f0; }
+    pre { background: #f8f8f8; border: 1px solid #ddd; padding: 12px; overflow: auto; font-size: 10px; }
+    .box { border: 2px solid #333; padding: 16px; margin: 16px 0; background: #fafafa; }
+  </style>
+</head>
+<body>
+  <p class="no-print"><a href="#" onclick="window.print();return false;">Stampa o Salva come PDF</a></p>
+  <h1>DSP Control – Schemi di collegamento (RCA + RX wireless)</h1>
+  <p><strong>Versione documento:</strong> 2.1 · Dual-ESP32 + RS-485 CQ260D + Ingressi RCA + Modulo RX</p>
+
+  <h2>1. Percorso audio Master – Ingressi RCA → Pad universale → ES8388 → Uscita delay</h2>
+  <div class="box">
+    <pre>
+  Console DJ / sorgente linea (RCA)
+        │  (MASTER 2, BOOTH, ecc.)
+        ▼
+  Ingressi RCA L/R sul box Master
+        │
+        ▼
+  Pad universale per canale (protezione fino a +20/+21 dBu)
+
+      R1 = 15 kΩ serie dal centrale RCA al nodo IN_CODEC
+      R2 = 4.7 kΩ dal nodo IN_CODEC a GND analogico
+
+  Impedenza vista dalla sorgente: ~19.7 kΩ
+  Attenuazione: ≈ -12.4 dB
+
+        │
+        ▼
+  ES8388 ADC (line-in stereo)
+   - Sample rate rilevato automaticamente (44.1/48 kHz)
+   - Input gain regolabile via software (PGA)
+
+        │
+        ├─► Elaborazione DSP + audio-reactive
+        ├─► TX wireless (ESP-NOW 2 canali)
+        └─► Buffer delay (software) → ES8388 DAC → RCA Out L/R
+
+  Uscita RCA L/R:
+   - Verso ampli senza DSP, con delay regolabile
+   - Livello controllato via gain DAC ES8388 (software)
+    </pre>
+    <p><strong>Note:</strong> il pad fisso protegge l'ADC da console molto “calde” (Prime 4, XDJ-XZ). Fine-tuning del livello tramite gain digitale ES8388.</p>
+  </div>
+
+  <h2>2. Master ↔ Slave (interconnessione I2S + IPC UART)</h2>
+  <table>
+    <tr><th>Master</th><th>Slave</th><th>Funzione</th></tr>
+    <tr><td>GPIO12</td><td>GPIO5</td><td>I2S BCLK</td></tr>
+    <tr><td>GPIO13</td><td>GPIO6</td><td>I2S WS</td></tr>
+    <tr><td>ES8388 DOUT (fan-out)</td><td>GPIO7</td><td>I2S DIN</td></tr>
+    <tr><td>GPIO17 TX</td><td>GPIO2 RX</td><td>IPC UART</td></tr>
+    <tr><td>GPIO18 RX</td><td>GPIO1 TX</td><td>IPC UART</td></tr>
+    <tr><td>GND</td><td>GND</td><td>Obbligatorio</td></tr>
+  </table>
+
+  <h2>3. Slave → DMX</h2>
+  <pre>
+  GPIO8 (TX) → MAX485 DI     MAX485 A → XLR pin 3
+  GPIO9 → DE+/RE- (HIGH)     MAX485 B → XLR pin 2
+                             GND/schermo → XLR pin 1
+  </pre>
+
+  <h2>4. Pin principali – Master e Slave (riepilogo chiaro)</h2>
+  <table>
+    <caption>ESP32 #1 – Master UEDX (tutti i GPIO occupati)</caption>
+    <tr><th>GPIO</th><th>Uso</th></tr>
+    <tr><td>11</td><td>I2S DIN ← ES8388 (ADC)</td></tr>
+    <tr><td>12</td><td>I2S BCLK → ES8388 + Slave</td></tr>
+    <tr><td>13</td><td>I2S WS → ES8388 + Slave</td></tr>
+    <tr><td>10</td><td>RS485 DE/RE → MAX485 DSP</td></tr>
+    <tr><td>17 / 18</td><td>IPC UART ↔ Slave (TX/RX)</td></tr>
+    <tr><td>19 / 20</td><td>I2C Touch GT911 (bus condiviso anche con codec/expander)</td></tr>
+    <tr><td>38</td><td>Reset touch (TP_RST) – nessun encoder/LED sul Master</td></tr>
+    <tr><td>43 / 44</td><td>RS-485 TX/RX → MAX485 → RJ45 DSP</td></tr>
+    <tr><td>altri</td><td>Bus LCD RGB (non disponibili per altre periferiche)</td></tr>
+  </table>
+
+  <table>
+    <caption>ESP32 #2 – Slave (tutte le periferiche utente)</caption>
+    <tr><th>GPIO</th><th>Uso</th></tr>
+    <tr><td>1 / 2</td><td>IPC UART ↔ Master</td></tr>
+    <tr><td>5 / 6 / 7</td><td>I2S BCLK / WS / DIN (da Master + ES8388)</td></tr>
+    <tr><td>8 / 9</td><td>DMX TX / DE → MAX485 #2 → XLR 3 pin</td></tr>
+    <tr><td>15 / 16 / 17</td><td>Encoder Volume (A / B / pulsante)</td></tr>
+    <tr><td>18 / 21 / 22</td><td>Encoder Balance (A / B / pulsante)</td></tr>
+    <tr><td>23 / 24</td><td>WS2812 DATA ring Volume / Balance</td></tr>
+    <tr><td>11</td><td>Uscita Strobo (opzionale)</td></tr>
+    <tr><td>3, 12–48</td><td>GPIO liberi per espansioni (es. modulo RX dedicato)</td></tr>
+  </table>
+
+  <h2>5. Alimentazione – Pololu #5398 (da datasheet)</h2>
+  <pre>
+  Jack+ ──► VIN1 o VIN1R     RJ45 V+ ──► VIN2 o VIN2R     GND comune
+  VOUT ──► Buck 5V ≥3A ──► UEDX 5V (SPEC: 5V 1A consigliati)
+  </pre>
+  <p>VINxR = ingresso con ~20 mΩ bilanciamento. Uscita OR: tensione più alta prevale.</p>
+
+  <h2>6. RJ45 lato box – bus DSP (esempio pinout)</h2>
+  <table>
+    <tr><th>Pin</th><th>Segnale</th></tr>
+    <tr><td>1–2</td><td>GND</td></tr>
+    <tr><td>4</td><td>RS-485 A</td></tr>
+    <tr><td>5</td><td>RS-485 B</td></tr>
+    <tr><td>7–8</td><td>V+ / GND ausiliari (solo se modulo DSP alimenta)</td></tr>
+  </table>
+  <p>Verificare con datasheet moduli PDA1001.</p>
+
+  <h2>7. Bus RS-485: Master → MAX485 → Moduli DSP</h2>
+  <pre>
+  ESP32-S3 Master                         MAX485              Bus RS-485 (115200 8N1)
+  ┌──────────────┐                   ┌────────────┐
+  │ GPIO43 TX ───┼──────────────────►│ DI         │
+  │ GPIO44 RX ◄──┼───────────────────│ RO         │
+  │ GPIO10 DE ───┼──────────────────►│ DE + /RE   │
+  │ GND ─────────┼──────────────────►│ GND        │
+  │              │                   │ A ─────────┼──► A ──► CQ260D #1 ──► #2 ──► ...
+  │              │                   │ B ─────────┼──► B ──► (twisted pair)
+  └──────────────┘                   └────────────┘
+  </pre>
+  <p><strong>Note:</strong> Terminazione 120 Ω tra A e B solo in fondo linea. GND comune tra Master e primo modulo DSP.</p>
+
+  <h2>8. ES8388 → RCA monitor / delay</h2>
+  <pre>
+  ES8388 DAC LOUT1 / ROUT1 → resistenze serie + filtro RC leggero → centro RCA
+  AGND → schermo RCA (punto stella analogico)
+
+  Gain DAC regolato via registri ES8388:
+   - outputGainDb configurabile via API/controller
+   - permette di adattarsi a ingressi “sensibili” di ampli senza DSP
+  </pre>
+
+  <h2>9. Modulo RX wireless – Audio + DSP + DMX</h2>
+  <pre>
+  MASTER (ESP32-S3)            Wireless (ESP-NOW)               MODULO RX (ESP32-S3)
+
+  ES8388 ADC ──────────┐
+                        ├─► TX audio L/R (frame 48 kHz, 16 bit)
+  RS-485 DSP (UART2) ───┤─────────────────────────────────────► ESP32 RX → MAX485 locale → CQ260D
+  DMX buffer ───────────┘─────────────────────────────────────► ESP32 RX → MAX485 DMX → XLR 3 pin
+
+                                                             ES8388 DAC
+                                                             │
+                                                             ├─► driver bilanciato (DRV134 / THAT1646 / opamp)
+                                                             │
+                                                             └─► XLR L/R verso ampli senza DSP
+
+  - Gain ingresso ADC lato Master: gestito via profili sorgente (Denon, Prime 4, XDJ, linea pro/consumer)
+  - Gain uscita DAC lato RX: gestito via parametro software (outputGainDb) per adattare il livello all'amplificatore
+  </pre>
+
+  <p style="margin-top:2em;font-size:10pt;color:#666;">Dettaglio completo: <b>docs/CABLING_COMPLETE.md</b>. PDF display: docs/UEDX80480050E-WB-A-V3.3-SPEC.pdf (inserire se mancante).</p>
+</body>
+</html>

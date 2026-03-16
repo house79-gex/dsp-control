@@ -10,7 +10,7 @@ sorgente analogica → ADC → processing DSP → DAC → amplificatori.
 ## Pipeline Audio Completa
 
 ```
-ES8388 ADC (input XLR)
+ES8388 ADC (input linea RCA sbilanciato)
   │
   │ I2S stereo 16-bit
   ▼

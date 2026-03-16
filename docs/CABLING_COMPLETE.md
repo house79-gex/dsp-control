@@ -36,13 +36,10 @@ flowchart TB
     BUCK33[3.3V se necessario]
   end
   subgraph AUDIO["Percorso audio"]
-    XLR_IN_L[XLR In L bilanciato]
-    XLR_IN_R[XLR In R bilanciato]
-    BAL2SE[THAT1206 x2 o equiv.]
-    RELAY[DPDT Relay audio]
-    ES8388[ES8388 Codec]
-    RCA_OUT[RCA Out L/R]
-    XLR_THRU[XLR passanti In/Out]
+  RCA_IN_L[RCA In L sbilanciato]
+  RCA_IN_R[RCA In R sbilanciato]
+  ES8388[ES8388 Codec]
+  RCA_OUT[RCA Out L/R]
   end
   subgraph MCU["ESP32-S3 Master UEDX80480050E"]
     ENC_V[Encoder Vol A/B + BTN]
@@ -57,12 +54,9 @@ flowchart TB
   RJ45_PWR --> ORING
   ORING --> BUCK5
   BUCK5 --> MCU
-  XLR_IN_L --> BAL2SE
-  XLR_IN_R --> BAL2SE
-  BAL2SE --> RELAY
-  RELAY --> ES8388
+  RCA_IN_L --> ES8388
+  RCA_IN_R --> ES8388
   ES8388 --> RCA_OUT
-  XLR_THRU -.->|passante| XLR_THRU
   ENC_V --> MCU
   ENC_B --> MCU
   RING_V --> MCU
@@ -148,48 +142,50 @@ Terminazione **120 Ω** tra A e B sull’**ultima** presa della catena (o solo s
 
 ---
 
-## 4. Ingressi audio bilanciati (XLR) → sbilanciato → ES8388
+## 4. Ingressi audio sbilanciati (RCA) → ES8388
 
-L’**ES8388** accetta ingressi **linea sbilanciati** (tipicamente **LIN1/RIN1** verso massa analogica). Da **XLR bilanciato** serve un **ricevitore differenziale**.
+L’**ES8388** viene ora alimentato direttamente da ingressi **linea sbilanciati RCA** (tipicamente **LIN1/RIN1** verso massa analogica).  
+La sorgente (es. **Denon** / pre-out) entra con ODG di livello linea compatibile con il range dell’ES8388, senza stadio di conversione bilanciato→sbilanciato.
 
-### Componente consigliato (per canale)
-
-| Parte | Funzione | Note |
-|-------|----------|------|
-| **THAT1206** (THAT Corporation) | Ricevitore linea bilanciato → uscita single-ended | CMRR elevato, rumore basso – **2 chip per stereo L/R** |
-| Alternativa | **SSM2142** / **INA137** (stereo) | Simile impiego |
-| Economica | **Op-amp + 3 resistori** per canale (diff amp) | Più rumore/CMRR peggiore |
-
-### Schema concettuale (per canale)
+### Collegamento concettuale (per canale)
 
 ```text
-  XLR pin 2 (+) ──► IN+  THAT1206
-  XLR pin 3 (−) ──► IN−
-  XLR pin 1 (GND) ─┴─► GND analogico
-                       │
-                       └── OUT (single) ──► AC couple (10µF) ──► attenuatore se serve ──► ES8388 LINx/RINx
+  RCA centrale L ──► AC couple (10µF) ──► eventuale attenuatore ──► ES8388 LINx
+  RCA centrale R ──► AC couple (10µF) ──► eventuale attenuatore ──► ES8388 RINx
+  Schermo RCA ─────► GND analogico (punto stella)
 ```
 
-- **Gain**: THAT1206 ha gain fisso ~0 dB verso uscita; regolare **PGA ES8388** (firmware già usa `setADCGain`).
-- **Protezione**: diodi BAV99 verso rail su ingresso XLR se ambiente live.
+- **Gain**: il guadagno si regola via **PGA ES8388** (firmware già usa `setADCGain`).
+- **Protezione**: opzionale clamp con diodi verso rail su ingressi del codec se ambiente “live”.
 
-### XLR passanti (through)
-
-- **In passante**: sorgente esterna → **primario** percorso verso PA (non interrotto).
-- **Derivazione**: da stesso punto (o secondario trasformatore) si può prendere copia verso **THAT1206** solo per **monitor/controllo** – oppure relay DPDT sceglie tra “linea diretta mixer” e “percorso test tone DAC” come da firmware (`MixerPassThrough` vs `TestTone`).
-
-Il **relay DPDT** nel firmware: **TCA9535 P0_0** HIGH = TestTone (DAC), LOW = pass-through mixer – **coerente con uno switch analogico** tra due sorgenti verso l’uscita monitor/RCA.
+Non esistono più **XLR passanti** né relay DPDT per selezionare pass-through: il segnale RCA dalla sorgente arriva **solo** al controller (ES8388) e non viene più fatto proseguire in analogico verso un’uscita “thru”.
 
 ---
 
-## 5. Uscite ES8388 → RCA
+## 5. Ingressi/uscite ES8388 – RCA + attenuatore
+
+### 5.1 Ingressi RCA → ES8388 (ADC)
+
+Per ogni canale:
+
+```text
+RCA centrale ── R1 = 10kΩ ──► Nodo IN_CODEC ──► condensatore ingresso ES8388
+                         │
+                         └─ R2 = 4.7kΩ ──► GND analogico
+Schermo RCA ───────────────► GND analogico (punto stella)
+```
+
+- **Attenuazione** ≈ ‑9.5 dB (fattore ~0.33), adatta a sorgenti “calde” tipo Denon.
+- **Impedenza vista dalla sorgente** ≈ 15kΩ (range tipico linea).
+
+### 5.2 Uscite ES8388 → RCA (DAC)
 
 | ES8388 (tipico breakout M5Stack / Atom) | RCA |
 |----------------------------------------|-----|
 | LOUT1 / ROUT1 (o HP out se usato) | RCA centrale |
 | AGND | RCA schermo |
 
-Usare cavi corti; massa RCA collegata al **punto stella** analogico.
+Usare cavi corti; massa RCA collegata al **punto stella** analogico, separata dai ritorni di potenza.
 
 ---
 
@@ -289,9 +285,8 @@ Inserisci lo **schematico Atomstack** nella cartella `docs/hardware/` (PDF) e ag
 |------------|----------|
 | Jack DC | Alimentazione principale → ORing IN1 |
 | RJ45 | Bus RS-485 DSP + (opz.) Vaux → ORing IN2 |
-| XLR F/M | In L / In R bilanciati → THAT1206 |
-| XLR passanti | Catena verso PA |
-| RCA | Monitor / registrazione da ES8388 DAC |
+| RCA In L/R | Ingressi linea sbilanciati da sorgente (es. Denon) → ES8388 |
+| RCA Out L/R | Uscita monitor / registrazione da ES8388 DAC |
 | USB-C | Programmazione ESP (se presente sulla UEDX) |
 
 ---

@@ -15,13 +15,16 @@ Guida completa per collegare e configurare il sistema DSP-Control con la console
 | **THD** | 0.0048% @ 1 kHz |
 | **Frequency Response** | 20 Hz – 20 kHz (±0.5 dB) |
 
-## Schema Collegamento
+## Schema Collegamento (versione attuale con RCA sbilanciati)
 
 ```
-SC LIVE 4 Main XLR Out L/R (+18 dBu)
+SC LIVE 4 RCA Out L/R (linea sbilanciata)
            │
            ▼
-DSP-Control Master ES8388 ADC (Line In, gain -14 dB)
+Attenuatore passivo stereo (R1/R2 per canale)
+           │
+           ▼
+DSP-Control Master ES8388 ADC (Line In, gain digitale 0 dB)
            │
            ├─► Elaborazione DSP (EQ, Crossover, Limiter)
            ├─► Wireless TX CH1/CH2 (ESP-NOW)
@@ -35,19 +38,20 @@ Casse Remote (Modulo RX) + Luci DMX
 
 ### 1. Collegamento Hardware
 
-1. **Cavo XLR bilanciato** (Main Out L) → DSP-Control Input L
-2. **Cavo XLR bilanciato** (Main Out R) → DSP-Control Input R
-3. Alimentazione DSP-Control: 12V 3A (separata da SC LIVE 4)
+1. **Cavo RCA sbilanciato** (RCA Out L) → **RCA In L** DSP-Control
+2. **Cavo RCA sbilanciato** (RCA Out R) → **RCA In R** DSP-Control
+3. Ogni RCA In passa per un **attenuatore passivo** verso l’ingresso linea ES8388
+4. Alimentazione DSP-Control: 12V 3A (separata da SC LIVE 4)
 
 ### 2. Configurazione SC LIVE 4
 
-**Opzione A: Ridurre gain output (RACCOMANDATO)**
-- Menu SC LIVE 4 → Settings → Audio → Output Level → **-14 dB**
-- Risultato: +18 dBu - 14 dB = +4 dBu (perfetto per ES8388)
+**Opzione A: Livello moderato sugli RCA (RACCOMANDATO)**
+- Menu SC LIVE 4 → Settings → Audio → Output Level → valore intermedio (evitare “Max” costante)
+- Risultato: livello di linea **compatibile** con attenuatore + ES8388, con buon headroom.
 
-**Opzione B: Usare gain software DSP-Control**
-- Lasciare SC LIVE 4 a 0 dB
-- Configurare input gain DSP-Control a -14 dB via app o API
+**Opzione B: Output RCA “caldo” + attenuazione maggiore**
+- Se utilizzi spesso la SC LIVE 4 vicina al massimo, puoi aumentare l’attenuazione (es. R1=15kΩ, R2=4.7kΩ).
+- Il gain ADC ES8388 resta vicino a 0 dB, sfruttando la dinamica del codec.
 
 ### 3. Verifica Configurazione Audio
 
@@ -77,16 +81,19 @@ POST /api/audio/input-gain
 {"gain": -14.0}
 ```
 
-## Gain Staging Ottimale
+## Gain Staging Ottimale (RCA → Attenuatore → ES8388)
+
+Esempio con attenuatore **R1 = 10kΩ** serie e **R2 = 4.7kΩ** verso massa (per canale):
 
 | Stadio | Livello | Note |
 |--------|---------|------|
-| SC LIVE 4 Main Out | +4 dBu (con -14 dB riduzione) | Configurare in SC LIVE 4 |
-| DSP-Control ADC Input | 0 dBFS | Perfetto match |
-| ES8388 ADC Gain | -14 dB | Compensa se SC LIVE 4 a +18 dBu |
+| SC LIVE 4 RCA Out | livello linea consumer/pro, regolato da master | Evitare clip su uscita console |
+| Attenuatore passivo | ≈ ‑9.5 dB | Protegge l’ingresso e uniforma le sorgenti |
+| DSP-Control ADC Input | vicino a 0 dBFS su picchi musicali | Headroom digitale mantenuto |
+| ES8388 ADC Gain | 0 dB (range fine ±6 dB via API) | Regolazione di fino via `/api/audio/input-gain` |
 | Wireless TX | 0 dBFS | Nessuna perdita |
-| Modulo RX DAC Output | +8.2 dBu | Output bilanciato verso ampli |
-| CQ260D Ampli Input | +4 dBu nominale | Headroom ~12 dB |
+| Modulo RX DAC Output | livello linea verso driver bilanciato/XLR | Vedi documentazione modulo RX |
+| CQ260D Ampli Input | +4 dBu nominale | Headroom ~12 dB se gain ampli corretto |
 
 ## Audio-Reactive con SC LIVE 4
 

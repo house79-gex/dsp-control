@@ -549,19 +549,34 @@ Neon logo:
 
 ### 13.7 Integrazione Denon DJ SC LIVE 4
 
-Il sistema DSP-Control è ottimizzato per funzionare con la console DJ Denon DJ SC LIVE 4 come sorgente audio principale.
+Il sistema DSP-Control è ottimizzato per funzionare con la console DJ Denon DJ SC LIVE 4 come sorgente audio principale, utilizzando ora **gli output RCA sbilanciati** (Booth/Rec) come sorgente linea diretta verso l'**ES8388**.
 
 #### Configurazione Automatica
 
-Al primo avvio, il sistema applica la configurazione default:
+Al primo avvio, il sistema applica la configurazione default coerente con gli **output RCA sbilanciati**:
 - Sample rate: **44.1 kHz** (standard DJ, match nativo SC LIVE 4)
 - Bit depth: **24-bit** (ES8388 supporta 24-bit)
-- Input gain: **-14 dB** (per compensare output +18 dBu della SC LIVE 4)
+- Input gain digitale ES8388: **0 dB** (valore neutro, lavoriamo con attenuazione analogica a monte)
 
-#### Problema di Gain Staging
+#### Gain Staging con ingressi RCA
 
-SC LIVE 4 output +18 dBu vs ES8388 ADC nominale +4 dBu → **14 dB di differenza**.
-Il sistema compensa automaticamente impostando il PGA ADC a -14 dB.
+Gli output **RCA sbilanciati** della SC LIVE 4 forniscono un livello di linea tipicamente compatibile con l’ingresso **line-in** dell’ES8388.  
+Per garantire headroom e compatibilità con altre sorgenti di linea, il sistema prevede:
+
+- Un **attenuatore passivo resistivo** (per canale) tra RCA e ingresso ES8388.
+- La regolazione fine tramite **PGA ADC ES8388** (da firmware).
+
+Esempio di attenuatore consigliato (per canale, stadio economico ma pulito):
+
+```text
+RCA centrale ── R1 = 10kΩ ──► Nodo IN_CODEC ──► condensatore d’ingresso ES8388
+                         │
+                         └─ R2 = 4.7kΩ ──► GND analogico
+```
+
+- Attenuazione ≈ **‑9.5 dB** (fattore ~0.33), sufficiente a gestire anche sorgenti “calde”.
+- Impedenza vista dalla sorgente ≈ 15kΩ (compatibile con uscite linea consumer/pro).
+- Possibilità di rifinire il livello tramite `inputGainDb` lato ES8388.
 
 #### Endpoint API
 
@@ -572,10 +587,14 @@ Il sistema compensa automaticamente impostando il PGA ADC a -14 dB.
 
 #### Collegamento Hardware
 
+Collegamento raccomandato in configurazione attuale:
+
 ```
-SC LIVE 4 Main XLR Out L → DSP-Control XLR Input L
-SC LIVE 4 Main XLR Out R → DSP-Control XLR Input R
+SC LIVE 4 RCA Out L → RCA In L DSP-Control → Attenuatore passivo → ES8388 LINx
+SC LIVE 4 RCA Out R → RCA In R DSP-Control → Attenuatore passivo → ES8388 RINx
 ```
+
+Gli ingressi XLR bilanciati e il relay di pass-through non sono più utilizzati: il segnale dalla SC LIVE 4 viene acquisito **solo** dal controller, senza proseguire in analogico verso altre catene.
 
 Per dettagli completi, vedere [SC_LIVE_4_INTEGRATION.md](SC_LIVE_4_INTEGRATION.md).
 

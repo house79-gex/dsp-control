@@ -136,10 +136,59 @@ ESP32-S3 DevKitC-1
 │  3.3V   ──── VCC   ──► DMX485         │
 └──────────────────────────────────────┘
 
-ES8388 → Amplificatore → Altoparlante
+ES8388 → Stadio uscita audio → Connettore XLR bilanciato → Amplificatore locale
 MAX485 → XLR RS-485 → CQ260D DSP
 DMX485 → XLR DMX OUT → Controller luci
 ```
+
+---
+
+## 6. Uscita Audio Professionale – ES8388 → XLR Bilanciato
+
+Per il modulo RX wireless vogliamo un’uscita audio **pulita, veloce da realizzare, economica ma professionale**.  
+Approccio consigliato: **driver di linea bilanciato integrato** per ciascun canale (tipicamente basato su DRV134 / THAT1646 o modulo equivalente).
+
+### 6.1 Schema concettuale per canale
+
+```text
+ES8388 LOUTx ──► filtro RC leggero ──► driver bilanciato (es. DRV134/THAT1646) ──► XLR Out L
+
+XLR pinout:
+  Pin 1 → GND / schermo (punto stella analogico box RX)
+  Pin 2 → HOT (+)
+  Pin 3 → COLD (−)
+```
+
+Per una soluzione **molto rapida ed economica**:
+- usi un **piccolo modulo PCB commerciale** “balanced line driver” basato su DRV134/THAT1646;
+- lo alimenti in **simmetrico ±12 V** o in **single-supply 12 V** (secondo specifica del modulo scelto);
+- colleghi l’ingresso del modulo al **LOUT/ROUT** dell’ES8388 tramite un condensatore di accoppiamento (4.7–10 µF, 16–25 V) e una resistenza serie (100–220 Ω).
+
+### 6.2 Variante solo-opamp (ancora economica)
+
+Se vuoi restare su componenti “generici”:
+
+```text
+ES8388 LOUTx ──► R_s = 220Ω ──► buffer opamp (NE5532 / OPA2134)
+                                   │
+                          stadio differenziale:
+                          OUT+ → XLR pin 2
+                          OUT− → XLR pin 3 (inversione di fase)
+GND analogico ────────────────────► XLR pin 1
+```
+
+Caratteristiche:
+- **NE5532**: molto economico ma già “pro”, richiede alimentazione duale ±12 V per massima headroom.
+- Rete di resistenze 10k/10k/10k/10k per creare una coppia di uscite bilanciate (classico schema di bilanciamento attivo).
+
+### 6.3 Livelli di uscita consigliati
+
+- Target uscita XLR: **+4 dBu nominale**, picchi fino a **+18 dBu** senza clipping opamp.
+- Impostare il gain complessivo (ES8388 DAC + driver bilanciato) in modo che:
+  - con segnale digitale a 0 dBFS si arrivi intorno a **+18 dBu** max sulla linea;
+  - in uso tipico musicale si stia fra **‑6 dBFS e ‑12 dBFS** → ~+8 dBu…+12 dBu.
+
+L’ES8388 può lavorare vicino a 0 dBFS senza problemi; il margine di headroom viene gestito dal **limiter/soft-clip lato master** più dal gain dell’amplificatore locale.
 
 ---
 
