@@ -151,9 +151,15 @@ Per il modulo RX wireless adottiamo in modo **definitivo** un piccolo PCB commer
 
 ```text
 ES8388 DAC
-  LOUT ── R_L = 47Ω ── C_L = 4.7–10µF ──► IN_L  (modulo DRV134 dual)
-  ROUT ── R_R = 47Ω ── C_R = 4.7–10µF ──► IN_R  (modulo DRV134 dual)
-   AGND ────────────────────────────────► GND   (modulo DRV134 dual)
+  LOUT ── R_L = 47Ω ── C_L = 4.7–10µF ──●────► IN_L        (modulo DRV134 dual)
+                                        │
+                                        └────► RCA_L out   (sbilanciato)
+
+  ROUT ── R_R = 47Ω ── C_R = 4.7–10µF ──●────► IN_R        (modulo DRV134 dual)
+                                        │
+                                        └────► RCA_R out   (sbilanciato)
+
+   AGND ─────────────────────────────────────────► GND     (modulo DRV134 dual + RCA)
 
 Modulo DRV134 dual
   OUT_L+ ──► XLR-L pin 2 (hot +)
@@ -172,6 +178,9 @@ Alimentazione modulo DRV134:
 Note:
 - **R_L / R_R = 47 Ω** limitano la corrente di picco e isolano lo stadio di uscita ES8388 dal carico del modulo DRV134.
 - **C_L / C_R = 4,7–10 µF / ≥16 V**, con polo positivo verso ES8388, rimuovono la **DC di bias** del codec (uscita del DRV134 è centrata a 0 V).
+- Dal nodo dopo ciascun condensatore (`●`) deriviamo in parallelo:
+  - il segnale verso **IN_L / IN_R** del DRV134 (uscite bilanciate XLR)
+  - il segnale verso **RCA_L / RCA_R** (uscite linea sbilanciate stereo).
 - Il modulo DRV134 fornisce un’uscita **bilanciata attiva** a livello linea pro (**+4 dBu nominale**) adatta all’ingresso XLR dei moduli PDA1001+CQ260D.
 
 ### 6.2 Modalità di utilizzo
@@ -179,6 +188,7 @@ Note:
 - **Un solo modulo RX stereo**:
   - XLR-L → cassa sinistra (ingresso XLR bilanciato del modulo PDA1001+CQ260D)
   - XLR-R → cassa destra
+  - RCA_L / RCA_R → eventuale ingresso linea sbilanciato locale (monitor, registratore, piccolo ampli hi‑fi, ecc.)
 - In futuro è possibile aggiungere **un secondo RX wireless stereo** per pilotare un’ulteriore coppia di casse.
 
 ### 6.3 Livelli di uscita consigliati

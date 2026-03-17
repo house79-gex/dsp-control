@@ -260,6 +260,101 @@
       <span>20Hz</span><span>100Hz</span><span>500Hz</span><span>1kHz</span><span>5kHz</span><span>20kHz</span>
     </div>
   </div>
+
+  <!-- Wireless RX status -->
+  <div class="card">
+    <h3>Wireless RX – Stato & Modalità</h3>
+    <div class="row" style="gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">CH1</div>
+        <div class="row" style="gap:6px;">
+          <span class="dot dot-on" id="rx1-dot"></span>
+          <span class="badge-sm" id="rx1-state">online</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;" id="rx1-metrics">
+          loss: 0.3% · 12k pkt
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">CH2</div>
+        <div class="row" style="gap:6px;">
+          <span class="dot dot-on" id="rx2-dot"></span>
+          <span class="badge-sm" id="rx2-state">online</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;" id="rx2-metrics">
+          loss: 0.5% · 11k pkt
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Modalità audio</div>
+        <select id="wireless-mode"
+                style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;min-width:220px;"
+                onchange="setWirelessMode(this.value)">
+          <option value="STEREO_SPLIT">STEREO_SPLIT · CH1=L, CH2=R</option>
+          <option value="DUAL_MONO">DUAL_MONO · copia stereo su CH1/CH2</option>
+          <option value="MAIN_SUB">MAIN_SUB · CH1 main, CH2 sub</option>
+        </select>
+        <div class="row" style="margin-top:8px;">
+          <label class="toggle">
+            <input type="checkbox" id="wireless-enabled" checked onchange="toggleWireless()">
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-size:13px;">Wireless abilitato</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configurazione gain ingresso / uscita -->
+  <div class="card">
+    <h3>Gain Ingresso / Uscita – Pad universale + RX</h3>
+    <div class="row" style="margin-bottom:10px;gap:10px;">
+      <span style="font-size:12px;color:var(--muted);">Profilo sorgente</span>
+      <select id="src-profile"
+              style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;min-width:240px;"
+              onchange="setSourceProfile(this.value)">
+        <option value="denon_live4">Denon SC LIVE 4 / Prime 4 (RCA caldi)</option>
+        <option value="mixer_pro">Mixer pro XLR → adattato a RCA</option>
+        <option value="consumer">Linea consumer (tablet / laptop)</option>
+      </select>
+      <span id="src-desc" style="font-size:11px;color:var(--muted);">
+        Pad 15k/4.7k ≈ -12.4 dB, gain ADC 0 dB
+      </span>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Ingresso (Master, ADC ES8388)</div>
+        <div class="slider-row">
+          <label>InputGain</label>
+          <input type="range" id="sl-in-gain" min="-24" max="6" value="0"
+                 oninput="updateSlider('sl-in-gain','v-in-gain')">
+          <span class="val" id="v-in-gain">0</span>
+          <span style="font-size:11px;color:var(--muted);margin-left:4px;">dB</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);">
+          Pad fisso (R1=15k, R2=4.7k) + fine‑tuning via `/api/audio/input-gain`.
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Uscita (RX, DAC ES8388 + DRV134)</div>
+        <div class="slider-row">
+          <label>OutputGain</label>
+          <input type="range" id="sl-out-gain" min="-24" max="6" value="-6"
+                 oninput="updateSlider('sl-out-gain','v-out-gain')">
+          <span class="val" id="v-out-gain">-6</span>
+          <span style="font-size:11px;color:var(--muted);margin-left:4px;">dB</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);">
+          Target: +4 dBu nominale su XLR, stesso livello su RCA.
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;gap:8px;">
+      <button class="btn btn-accent btn-sm" onclick="applyGainConfig()">Applica configurazione gain</button>
+      <button class="btn btn-dark btn-sm" onclick="log('Reset gain preview')">Reset</button>
+    </div>
+  </div>
 </div>
 
 <!-- ============================== LUCI (DMX) TAB ============================== -->
@@ -597,6 +692,48 @@ animVU();
 
 // ===== Audio mode =====
 function setAudioMode(mode) { log('Audio mode → ' + mode); }
+
+// ===== Wireless RX (mock) =====
+let wirelessOn = true;
+function setWirelessMode(mode) {
+  log('Wireless mode → ' + mode);
+}
+function toggleWireless() {
+  wirelessOn = document.getElementById('wireless-enabled').checked;
+  log('Wireless enable → ' + wirelessOn);
+}
+// Simula piccoli cambi di loss / packet per i due canali
+setInterval(() => {
+  const l1 = (0.2 + Math.random() * 0.5).toFixed(1);
+  const l2 = (0.3 + Math.random() * 0.7).toFixed(1);
+  document.getElementById('rx1-metrics').textContent = `loss: ${l1}% · 12k pkt`;
+  document.getElementById('rx2-metrics').textContent = `loss: ${l2}% · 11k pkt`;
+}, 1500);
+
+// ===== Gain config (mock) =====
+function setSourceProfile(val) {
+  let desc = '';
+  switch (val) {
+    case 'denon_live4':
+      desc = 'Pad 15k/4.7k ≈ -12.4 dB, InputGain ~0 dB';
+      break;
+    case 'mixer_pro':
+      desc = 'Pad attivo + attenuatore esterno, InputGain -6…-12 dB';
+      break;
+    case 'consumer':
+      desc = 'Pad quasi trasparente, InputGain +6…+12 dB (se necessario)';
+      break;
+  }
+  document.getElementById('src-desc').textContent = desc;
+  log('Source profile → ' + val);
+}
+
+function applyGainConfig() {
+  const inDb  = document.getElementById('sl-in-gain').value;
+  const outDb = document.getElementById('sl-out-gain').value;
+  log(`Apply gain: input ${inDb} dB, output ${outDb} dB`);
+  alert('Configurazione gain applicata (preview UI – nessuna chiamata reale API).');
+}
 
 // ===== DMX =====
 const dmxFixtures = [

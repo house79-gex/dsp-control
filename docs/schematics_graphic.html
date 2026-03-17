@@ -115,9 +115,9 @@
       <!-- RX module -->
       <rect x="560" y="240" width="260" height="160" rx="12" fill="url(#gRx)" stroke="#137333" stroke-width="2"/>
       <text x="690" y="270" text-anchor="middle" font-size="15" font-weight="bold" fill="#137333">Modulo RX wireless</text>
-      <text x="690" y="288" text-anchor="middle" font-size="11" fill="#202124">ESP32-S3 + ES8388 + driver XLR</text>
+      <text x="690" y="288" text-anchor="middle" font-size="11" fill="#202124">ESP32-S3 + ES8388 + DRV134 dual</text>
       <text x="575" y="310" font-size="11" fill="#333">• RX ESP-NOW 2 canali audio</text>
-      <text x="575" y="326" font-size="11" fill="#333">• ES8388 DAC → driver bilanciato → XLR out</text>
+      <text x="575" y="326" font-size="11" fill="#333">• ES8388 DAC → RC → DRV134 dual → XLR L/R + RCA L/R</text>
       <text x="575" y="342" font-size="11" fill="#333">• MAX485 RS-485 → CQ260D locale</text>
       <text x="575" y="358" font-size="11" fill="#333">• DMX OUT verso fixture</text>
 
@@ -268,7 +268,7 @@
       <!-- Modulo RX schematico -->
       <rect x="560" y="210" width="260" height="90" rx="10" fill="#e6f4ea" stroke="#137333" stroke-width="2"/>
       <text x="690" y="235" text-anchor="middle" font-size="11" font-weight="bold" fill="#137333">Modulo RX wireless</text>
-      <text x="690" y="253" text-anchor="middle" font-size="9" fill="#333">ES8388 DAC → driver XLR → ampli senza DSP</text>
+      <text x="690" y="253" text-anchor="middle" font-size="9" fill="#333">ES8388 DAC → RC → DRV134 dual → XLR L/R + RCA L/R</text>
       <text x="690" y="269" text-anchor="middle" font-size="9" fill="#333">RS-485 locale → CQ260D · DMX → XLR 3 pin</text>
     </svg>
     <p class="note">Terminazione 120 Ω tra A e B solo a fine bus. GND comune tra Master, RX e moduli DSP. L'uscita audio del modulo RX è bilanciata e pilotata da ES8388 con gain regolabile via software.</p>

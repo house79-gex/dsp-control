@@ -234,5 +234,77 @@ Usa questa guida insieme alle tavole concettuali `schematics_electric.html` e `s
 
 ---
 
+## Foglio 7 – Modulo RX Wireless (ES8388 → DRV134 dual → XLR + RCA)
+
+**Obiettivo**: documentare il modulo RX stereo che riceve l’audio via ESP‑NOW, usa un ES8388 come DAC e un modulo **DRV134 dual** per generare 2 uscite XLR bilanciate (**L/R**) più 2 uscite RCA sbilanciate in parallelo.
+
+### Simboli da piazzare
+
+- `U_RX_MCU` = blocco generico `ESP32-S3` (solo per riferimento, I2S/I2C dal firmware RX).
+- `U_DAC`    = `Audio:ES8388`.
+- `U_DRV`    = simbolo custom `DRV134_Dual` oppure due istanze `Audio:DRV134` (CH L e CH R).
+- `J_XLR_L`, `J_XLR_R` = `Connector_Audio:XLR3_Male` (o equivalente 3 pin).
+- `J_RCA_L`, `J_RCA_R` = `Connector_Generic:Conn_01x02` (centrale + schermo).
+- `R_L`, `R_R` = `Device:R` valore `47R` (serie uscita ES8388).
+- `C_L`, `C_R` = `Device:CP` valore `4u7`–`10u`, ≥16 V (elettrolitico, polo `+` verso ES8388).
+- Alimentazione:
+  - `PWR_FLAG` / `+5V_RX` (o `+12V_RX` / `+15V_RX`) per il VCC del DRV134.
+  - `GND` comune analogico/digitale del modulo RX.
+
+### Collegamenti DAC → DRV134 + RCA (canale Left, Right identico)
+
+1. **ES8388 DAC**
+   - Usa i pin `LOUT1` e `ROUT1` di `U_DAC` per i due canali.
+
+2. **Rete RC di uscita (per canale L)**
+   - `LOUT1` → pin 1 di `R_L` (47R).
+   - Pin 2 di `R_L` → pin 1 di `C_L`.
+   - Pin 2 di `C_L` → nodo `L_OUT_AC`.
+   - Pin 2 di `C_L` = lato **freddo** in AC (nessuna DC), quindi verso DRV134/RCA.
+   - Terminale negativo di `C_L` verso `L_OUT_AC`, positivo verso `LOUT1`.
+
+3. **Ingresso DRV134 (L) e RCA_L**
+   - Nodo `L_OUT_AC` → pin `IN_L` di `U_DRV` (primo canale DRV134).
+   - Nodo `L_OUT_AC` → pin centrale di `J_RCA_L`.
+   - Pin schermo di `J_RCA_L` → net `AGND` (stessa massa analogica di ES8388 e DRV134).
+
+4. **Canale Right**
+   - Ripeti la stessa struttura con:
+     - `R_R`, `C_R`, nodo `R_OUT_AC`,
+     - ingresso `IN_R` di `U_DRV`,
+     - connettore `J_RCA_R`.
+
+### Collegamenti uscite DRV134 → XLR
+
+Per il simbolo duale `U_DRV` (o due simboli singoli):
+
+- Canale Left:
+  - Pin `OUT_L+` → pin 2 di `J_XLR_L` (hot, `L+`).
+  - Pin `OUT_L-` → pin 3 di `J_XLR_L` (cold, `L−`).
+  - Pin `GND` di `U_DRV` → pin 1 di `J_XLR_L` (schermo / massa).
+
+- Canale Right:
+  - Pin `OUT_R+` → pin 2 di `J_XLR_R`.
+  - Pin `OUT_R-` → pin 3 di `J_XLR_R`.
+  - `GND` → pin 1 di `J_XLR_R`.
+
+Puoi opzionalmente inserire resistenze serie da **47–100R** per ogni uscita:
+
+- `R_XLR_LP`, `R_XLR_LN`, `R_XLR_RP`, `R_XLR_RN` tra `OUT_x` del DRV134 e i pin 2/3 degli XLR, per limitare correnti di picco e stabilizzare carichi capacitivi.
+
+### Alimentazione DRV134
+
+- Pin `V+` di `U_DRV` → net `+5V_RX` (o `+12V_RX` / `+15V_RX` se scegli alimentazione più alta).
+- Pin `GND` → `GND` comune del modulo RX.
+- Aggiungi condensatori di bypass:
+  - `C_V+_1 = 100n` e `C_V+_2 = 10u` tra `V+` e `GND` vicini al simbolo `U_DRV`.
+
+In questo foglio puoi anche richiamare, tramite un richiamo grafico o label, la presenza di:
+
+- `MAX485 locale` (già definito in altri fogli) per RS‑485 verso CQ260D.
+- `DMX485` per uscita DMX delle luci.
+
+---
+
 Stampa questo file insieme alle tavole SVG/HTML (`schematics_electric.html`) per avere una vista sia **grafica** sia **testuale** dei pin e dei collegamenti necessari per ricostruire gli schemi in KiCad.
 

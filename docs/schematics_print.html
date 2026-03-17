@@ -142,7 +142,7 @@
    - permette di adattarsi a ingressi “sensibili” di ampli senza DSP
   </pre>
 
-  <h2>9. Modulo RX wireless – Audio + DSP + DMX</h2>
+  <h2>9. Modulo RX wireless – Audio (XLR + RCA) + DSP + DMX</h2>
   <pre>
   MASTER (ESP32-S3)            Wireless (ESP-NOW)               MODULO RX (ESP32-S3)
 
@@ -153,12 +153,19 @@
 
                                                              ES8388 DAC
                                                              │
-                                                             ├─► driver bilanciato (DRV134 / THAT1646 / opamp)
-                                                             │
-                                                             └─► XLR L/R verso ampli senza DSP
+                      per canale (L/R)                       │
+                      LOUT/ROUT ── 47 Ω ── 4.7–10 µF ──●─────┤
+                                                      │
+                                                      ├─► IN_L / IN_R modulo DRV134 dual
+                                                      │
+                                                      └─► RCA_L / RCA_R (uscite linea sbilanciate)
+
+                     DRV134 dual:
+                       OUT_L+ / OUT_L− / GND → XLR-L pin 2 / 3 / 1
+                       OUT_R+ / OUT_R− / GND → XLR-R pin 2 / 3 / 1
 
   - Gain ingresso ADC lato Master: gestito via profili sorgente (Denon, Prime 4, XDJ, linea pro/consumer)
-  - Gain uscita DAC lato RX: gestito via parametro software (outputGainDb) per adattare il livello all'amplificatore
+  - Gain uscita DAC lato RX: gestito via parametro software (outputGainDb) per adattare il livello all'amplificatore e all'ingresso XLR/RCA locale
   </pre>
 
   <p style="margin-top:2em;font-size:10pt;color:#666;">Dettaglio completo: <b>docs/CABLING_COMPLETE.md</b>. PDF display: docs/UEDX80480050E-WB-A-V3.3-SPEC.pdf (inserire se mancante).</p>
