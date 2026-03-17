@@ -136,63 +136,63 @@ ESP32-S3 DevKitC-1
 │  3.3V   ──── VCC   ──► DMX485         │
 └──────────────────────────────────────┘
 
-ES8388 → Stadio uscita audio → Connettore XLR bilanciato → Amplificatore locale
+ES8388 → Stadio uscita audio → Driver di linea bilanciato → 2× Connettore XLR bilanciato → Amplificatori locali (L/R)
 MAX485 → XLR RS-485 → CQ260D DSP
 DMX485 → XLR DMX OUT → Controller luci
 ```
 
 ---
 
-## 6. Uscita Audio Professionale – ES8388 → XLR Bilanciato
+## 6. Uscita Audio Professionale – ES8388 → Modulo DRV134 dual → 2× XLR Bilanciati
 
-Per il modulo RX wireless vogliamo un’uscita audio **pulita, veloce da realizzare, economica ma professionale**.  
-Approccio consigliato: **driver di linea bilanciato integrato** per ciascun canale (tipicamente basato su DRV134 / THAT1646 o modulo equivalente).
+Per il modulo RX wireless adottiamo in modo **definitivo** un piccolo PCB commerciale basato su **DRV134 dual channel** (sbilanciato → bilanciato), alimentato da **5–24 V DC**.
 
-### 6.1 Schema concettuale per canale
-
-```text
-ES8388 LOUTx ──► filtro RC leggero ──► driver bilanciato (es. DRV134/THAT1646) ──► XLR Out L
-
-XLR pinout:
-  Pin 1 → GND / schermo (punto stella analogico box RX)
-  Pin 2 → HOT (+)
-  Pin 3 → COLD (−)
-```
-
-Per una soluzione **molto rapida ed economica**:
-- usi un **piccolo modulo PCB commerciale** “balanced line driver” basato su DRV134/THAT1646;
-- lo alimenti in **simmetrico ±12 V** o in **single-supply 12 V** (secondo specifica del modulo scelto);
-- colleghi l’ingresso del modulo al **LOUT/ROUT** dell’ES8388 tramite un condensatore di accoppiamento (4.7–10 µF, 16–25 V) e una resistenza serie (100–220 Ω).
-
-### 6.2 Variante solo-opamp (ancora economica)
-
-Se vuoi restare su componenti “generici”:
+### 6.1 Schema concettuale stereo (RX unico con 2 XLR out)
 
 ```text
-ES8388 LOUTx ──► R_s = 220Ω ──► buffer opamp (NE5532 / OPA2134)
-                                   │
-                          stadio differenziale:
-                          OUT+ → XLR pin 2
-                          OUT− → XLR pin 3 (inversione di fase)
-GND analogico ────────────────────► XLR pin 1
+ES8388 DAC
+  LOUT ── R_L = 47Ω ── C_L = 4.7–10µF ──► IN_L  (modulo DRV134 dual)
+  ROUT ── R_R = 47Ω ── C_R = 4.7–10µF ──► IN_R  (modulo DRV134 dual)
+   AGND ────────────────────────────────► GND   (modulo DRV134 dual)
+
+Modulo DRV134 dual
+  OUT_L+ ──► XLR-L pin 2 (hot +)
+  OUT_L− ──► XLR-L pin 3 (cold −)
+  GND    ──► XLR-L pin 1 (schermo/masa)
+
+  OUT_R+ ──► XLR-R pin 2 (hot +)
+  OUT_R− ──► XLR-R pin 3 (cold −)
+  GND    ──► XLR-R pin 1 (schermo/masa)
+
+Alimentazione modulo DRV134:
+  V+  ──► 5 V (oggi) oppure 12–15 V DC (futuro)
+  GND ──► stessa massa del modulo RX / ES8388
 ```
 
-Caratteristiche:
-- **NE5532**: molto economico ma già “pro”, richiede alimentazione duale ±12 V per massima headroom.
-- Rete di resistenze 10k/10k/10k/10k per creare una coppia di uscite bilanciate (classico schema di bilanciamento attivo).
+Note:
+- **R_L / R_R = 47 Ω** limitano la corrente di picco e isolano lo stadio di uscita ES8388 dal carico del modulo DRV134.
+- **C_L / C_R = 4,7–10 µF / ≥16 V**, con polo positivo verso ES8388, rimuovono la **DC di bias** del codec (uscita del DRV134 è centrata a 0 V).
+- Il modulo DRV134 fornisce un’uscita **bilanciata attiva** a livello linea pro (**+4 dBu nominale**) adatta all’ingresso XLR dei moduli PDA1001+CQ260D.
+
+### 6.2 Modalità di utilizzo
+
+- **Un solo modulo RX stereo**:
+  - XLR-L → cassa sinistra (ingresso XLR bilanciato del modulo PDA1001+CQ260D)
+  - XLR-R → cassa destra
+- In futuro è possibile aggiungere **un secondo RX wireless stereo** per pilotare un’ulteriore coppia di casse.
 
 ### 6.3 Livelli di uscita consigliati
 
-- Target uscita XLR: **+4 dBu nominale**, picchi fino a **+18 dBu** senza clipping opamp.
-- Impostare il gain complessivo (ES8388 DAC + driver bilanciato) in modo che:
-  - con segnale digitale a 0 dBFS si arrivi intorno a **+18 dBu** max sulla linea;
-  - in uso tipico musicale si stia fra **‑6 dBFS e ‑12 dBFS** → ~+8 dBu…+12 dBu.
+- Target uscita XLR: **+4 dBu nominale**, con margine fino a **+18 dBu** lato amplificatore.
+- Il gain complessivo (ES8388 DAC + DRV134 + gain del modulo PDA1001+CQ260D) va tarato in modo che:
+  - con segnale digitale a **0 dBFS** dal master si resti entro il limite di headroom del modulo ampli;
+  - in uso reale il livello medio stia fra **‑12 dBFS e ‑6 dBFS**, sfruttando il limiter/soft‑clip lato master.
 
-L’ES8388 può lavorare vicino a 0 dBFS senza problemi; il margine di headroom viene gestito dal **limiter/soft-clip lato master** più dal gain dell’amplificatore locale.
+L’ES8388 può lavorare vicino a 0 dBFS; il **limiter / soft‑clip** nel percorso master e la regolazione del gain DSP CQ260D proteggono da eventuali clip udibili sulle casse.
 
 ---
 
-## 6. BOM – 2 Moduli RX (circa €59)
+## 7. BOM – 2 Moduli RX (circa €59)
 
 | Componente              | Qty | Prezzo unit. | Totale |
 |-------------------------|-----|--------------|--------|
@@ -210,7 +210,7 @@ L’ES8388 può lavorare vicino a 0 dBFS senza problemi; il margine di headroom 
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 ### Packet Loss Elevato (>5%)
 - Verificare distanza e ostruzioni fisiche
