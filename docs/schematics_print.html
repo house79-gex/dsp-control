@@ -108,11 +108,11 @@
 
   BOX MASTER:
     230VAC ──► IRM-30-5ST (5V 6A) ──► +5V_SYS → UEDX / MAX485 / WS2812 / periferiche
-                              └──► AMS1117-3.3 → +3V3_CODEC → Filtro LC → ES8388
+                              └──► (ferrite/LC) → +5V_M144 → Modulo ES8388 M144 (interno 3.3V)
 
   MODULO RX (opzionale, montato vicino alle casse):
     230VAC ──► IRM-05-5  (5V 1A)  ──► +5V_RX  → ESP32 / MAX485 / logica
-                              └──► AMS1117-3.3 → +3V3_RX → LC → ES8388
+                              └──► (ferrite/LC) → +5V_M144_RX → Modulo ES8388 M144 (interno 3.3V)
 
     230VAC ──► IRM-20-15 (15V ~1.3A) ──► +15V_RX → LC → DRV134 dual (bilanciato)
 

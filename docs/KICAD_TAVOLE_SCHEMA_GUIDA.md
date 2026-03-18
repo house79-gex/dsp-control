@@ -125,24 +125,26 @@ Usa questa guida insieme alle tavole concettuali `schematics_electric.html` e `s
 
 ---
 
-## Foglio 4 – Alimentazione: PSU IRM dedicati + 3.3V codec + filtri LC
+## Foglio 4 – Alimentazione: PSU IRM dedicati + filtro su 5V verso M144 + filtri RX
 
 **Obiettivo**: alimentare in modo indipendente Master e RX dato che la Vaux dei moduli DSP non è continua.  
-Si usano alimentatori AC/DC Mean Well serie IRM e si generano i 3.3 V locali per ES8388 con filtro LC.
+Si usano alimentatori AC/DC Mean Well serie IRM.
+
+Nota importante:
+- Se usi il **modulo M5 M144 (ES8388)**, lo alimenti a **5V** (pin `5V` del BUS) e filtri quel ramo.
+- Il chip ES8388 lavora internamente a 3.3V (gestito sul modulo).
 
 ### Simboli da piazzare
 
 - `J_AC_IN` = connettore AC (simbolo a 2/3 poli: L/N/PE).
 - `U_PSU5_MASTER` = blocco `Mean Well IRM-30-5ST` (AC/DC 5V 6A).
-- `U_REG33_MASTER` = `Regulator_Linear:AMS1117-3.3` (o equivalente 3.3V).
-- `L_CODEC` = `Device:L` valore `10uH` (filtro LC codec).
-- `C_CODEC_IN` / `C_CODEC_OUT` = (per ciascun lato) `Device:C` 100n + `Device:CP` 10u (bypass pre/post induttore).
+- `FB_CODEC` = `Device:Ferrite_Bead` (oppure `Device:L` 10uH) sul ramo `+5V_M144`.
+- `C_CODEC_IN` / `C_CODEC_OUT` = (per ciascun lato) `Device:C` 100n + `Device:CP` 10u (bypass pre/post filtro), vicino al connettore del modulo M144.
 
 - (Opzionale, se rappresenti anche il box RX in KiCad)
   - `U_PSU5_RX` = `Mean Well IRM-05-5` (AC/DC 5V 1A).
   - `U_PSU15_RX` = `Mean Well IRM-20-15` (AC/DC 15V ~1.3A).
-  - `U_REG33_RX` = `AMS1117-3.3` (3.3V codec RX).
-  - `L_CODEC_RX` + caps: filtro LC 3.3V verso ES8388 RX.
+  - `FB_CODEC_RX` + caps: filtro su 5V verso M144 (RX).
   - `L_DRV_RX` + caps: filtro LC 15V verso DRV134 RX.
 
 ### Collegamenti
@@ -153,20 +155,15 @@ Si usano alimentatori AC/DC Mean Well serie IRM e si generano i 3.3 V locali per
      - `+5V_SYS`
      - `GND`
 
-2. **Master: 5V → 3.3V codec**
-   - `+5V_SYS` → `U_REG33_MASTER` IN
-   - `U_REG33_MASTER` OUT → net `+3V3_CODEC`
-   - `GND` comune
-
-3. **Filtro LC (codec)**
-   - `+3V3_CODEC` → `C_CODEC_IN` verso GND (10u + 100n)
-   - `+3V3_CODEC` → `L_CODEC (10uH)` → net `+3V3_ES8388`
-   - `+3V3_ES8388` → `C_CODEC_OUT` verso GND (10u + 100n)
-   - `+3V3_ES8388` alimenta i pin AVDD/DVDD del modulo ES8388 (secondo breakout)
+2. **Master: filtro su 5V verso M144**
+   - `+5V_SYS` → `C_CODEC_IN` verso GND (10u + 100n)
+   - `+5V_SYS` → `FB_CODEC` (o `L` 10uH) → net `+5V_M144`
+   - `+5V_M144` → `C_CODEC_OUT` verso GND (10u + 100n)
+   - `+5V_M144` alimenta il pin `5V` del modulo **M144** (codec ES8388)
 
 4. **RX (opzionale)**
    - `J_AC_IN_RX` → `U_PSU5_RX` (5V) e `U_PSU15_RX` (15V)
-   - `+5V_RX` → `U_REG33_RX` → `LC` → `+3V3_RX_ES8388`
+   - `+5V_RX` → filtro (`FB_CODEC_RX` + caps) → `+5V_M144_RX`
    - `+15V_RX` → `LC` → `+15V_DRV134`
 
 ---

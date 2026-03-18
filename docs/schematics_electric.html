@@ -228,24 +228,15 @@
 
   <path d="M 200 105 L 260 105" stroke="#000" stroke-width="2"/>
 
-  <!-- Regolatore 3.3V codec -->
-  <rect x="560" y="60" width="180" height="90" fill="#fff8e1" stroke="#f9ab00" stroke-width="2" rx="6"/>
-  <text x="650" y="88" text-anchor="middle" font-weight="bold">AMS1117-3.3</text>
-  <text x="650" y="106" text-anchor="middle" font-size="9">da +5V_SYS</text>
-  <text x="650" y="124" text-anchor="middle" font-size="9">→ +3V3_CODEC</text>
+  <!-- Filtro su 5V verso modulo M144 (ES8388) -->
+  <rect x="560" y="50" width="480" height="110" fill="#e3f2fd" stroke="#1565c0" stroke-width="2" rx="6"/>
+  <text x="800" y="78" text-anchor="middle" font-weight="bold">Filtro 5V → Modulo ES8388 M144</text>
+  <text x="800" y="96" text-anchor="middle" font-size="9">Ferrite (o L=10µH) · C=10µF+100n (in/out)</text>
+  <text x="575" y="122" font-size="9">+5V_SYS → filtro → +5V_M144 → M144 (interno 3.3V per chip ES8388)</text>
+  <text x="575" y="140" font-size="9">posizionare il filtro vicino al connettore del modulo M144</text>
 
   <path d="M 500 105 L 560 105" stroke="#c00" stroke-width="2"/>
   <text x="510" y="98" font-size="9" fill="#c00">+5V</text>
-
-  <!-- Filtro LC codec -->
-  <rect x="790" y="50" width="250" height="110" fill="#e3f2fd" stroke="#1565c0" stroke-width="2" rx="6"/>
-  <text x="915" y="78" text-anchor="middle" font-weight="bold">Filtro LC ES8388</text>
-  <text x="915" y="96" text-anchor="middle" font-size="9">L=10µH · C=10µF+100n (in/out)</text>
-  <text x="805" y="122" font-size="9">+3V3_CODEC → LC → +3V3_ES8388</text>
-  <text x="805" y="140" font-size="9">posizionare vicino al codec</text>
-
-  <path d="M 740 105 L 790 105" stroke="#c00" stroke-width="2"/>
-  <text x="748" y="98" font-size="9" fill="#c00">3.3V</text>
 
   <!-- Modulo RX (opzionale) -->
   <text x="60" y="220" font-size="12" font-weight="bold" fill="#137333">Modulo RX (opzionale) – alimentazioni dedicate</text>
@@ -271,8 +262,8 @@
 
   <rect x="820" y="250" width="220" height="110" fill="#e3f2fd" stroke="#1565c0" stroke-width="2" rx="6"/>
   <text x="930" y="278" text-anchor="middle" font-weight="bold">Filtri LC RX</text>
-  <text x="930" y="296" text-anchor="middle" font-size="9">LC 3.3V ES8388 + LC 15V DRV134</text>
-  <text x="835" y="330" font-size="9">+3V3_RX_CODEC → LC → ES8388</text>
+  <text x="930" y="296" text-anchor="middle" font-size="9">Filtro 5V→M144 (ES8388) + LC 15V DRV134</text>
+  <text x="835" y="330" font-size="9">+5V_RX → filtro → +5V_M144_RX → ES8388</text>
   <text x="835" y="348" font-size="9">+15V_RX → LC → DRV134</text>
 </svg>
 </div>

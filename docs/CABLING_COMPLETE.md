@@ -78,27 +78,28 @@ Dato che l’uscita ausiliaria dei moduli DSP **non è continua** ma va abilitat
   - UEDX (ESP32 + display)
   - periferiche 5 V (WS2812, MAX485, ecc.)
   - eventuali moduli aggiuntivi
-- **3.3 V locale** per il codec e la logica 3.3 V:
-  - `AMS1117-3.3` (come da tua lista) *oppure* un regolatore LDO più silenzioso se vuoi migliorare SNR
-- **Filtro LC anti-disturbi** prima del modulo ES8388:
+- **Alimentazione modulo ES8388 (M5 M144)**:
+  - il **modulo M144** si alimenta a **5 V** (pin `5V` sul BUS); il chip ES8388 lavora internamente a **3.3 V**
+- **Filtro (ferrite/LC) anti-disturbi** prima del modulo M144:
   - consigliato soprattutto se alimenti display/backlight e LED dalla stessa 5 V
 
 ### 2.2 Collegamento concettuale
 
 ```text
   230VAC ──► IRM-30-5ST (5V) ──► +5V_SYS ──► UEDX / MAX485 / WS2812 / ecc.
-                           └──► AMS1117-3.3 ──► +3V3_CODEC ──► Filtro LC ──► ES8388 (AVDD/DVDD)
+                           └──► (ferrite/LC) ──► +5V_M144 ──► Modulo ES8388 M144 (interno 3.3V)
 
   GND: punto stella (analogico) vicino al codec; ritorni “sporchi” (LED/backlight) separati fin dove possibile.
 ```
 
-### 2.3 Valori pratici filtro LC (linea 3.3V del codec)
+### 2.3 Valori pratici filtro (linea 5V verso M144)
 
 Esempio “robusto” (non critico, va bene anche come ferrite+caps):
 
-- **L**: 10 µH (corrente nominale ≥ 300–500 mA, bassa DCR)
+- **Ferrite bead**: 600Ω @ 100MHz (corrente nominale ≥ 300–500 mA)
+  - oppure **L**: 10 µH (corrente nominale ≥ 300–500 mA, bassa DCR)
 - **C lato ingresso**: 10 µF + 100 nF verso GND
-- **C lato uscita (vicino al codec)**: 10 µF + 100 nF verso GND
+- **C lato uscita (vicino al modulo M144)**: 10 µF + 100 nF verso GND
 
 Obiettivo: ridurre ripple/commutazione e isolare il codec dai disturbi digitali.
 
