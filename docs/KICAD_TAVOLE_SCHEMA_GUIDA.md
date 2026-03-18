@@ -125,34 +125,49 @@ Usa questa guida insieme alle tavole concettuali `schematics_electric.html` e `s
 
 ---
 
-## Foglio 4 – Alimentazione: Pololu ORing + Buck 5 V
+## Foglio 4 – Alimentazione: PSU IRM dedicati + 3.3V codec + filtri LC
 
-**Obiettivo**: sommare due sorgenti (Jack DC + Vaux RJ45) e generare 5 V per Master/Slave/codec.
+**Obiettivo**: alimentare in modo indipendente Master e RX dato che la Vaux dei moduli DSP non è continua.  
+Si usano alimentatori AC/DC Mean Well serie IRM e si generano i 3.3 V locali per ES8388 con filtro LC.
 
 ### Simboli da piazzare
 
-- `J_DC` = `Connector_Generic:Conn_01x02` (ingresso DC principale).
-- `J_RJ45_VAUX` = connettore RJ45 (puoi riusare il simbolo di Foglio 1, usando solo i pin di potenza).
-- `U_ORING` = simbolo custom o generico (puoi usare `Conn_02x03` annotando pin):
-  - `VIN1`, `VIN1R`, `VIN2`, `VIN2R`, `VOUT`, `GND`.
-- `U_BUCK5` = simbolo per step-down 5 V (o connettore verso modulo LM2596/altro).
+- `J_AC_IN` = connettore AC (simbolo a 2/3 poli: L/N/PE).
+- `U_PSU5_MASTER` = blocco `Mean Well IRM-30-5ST` (AC/DC 5V 6A).
+- `U_REG33_MASTER` = `Regulator_Linear:AMS1117-3.3` (o equivalente 3.3V).
+- `L_CODEC` = `Device:L` valore `10uH` (filtro LC codec).
+- `C_CODEC_IN` / `C_CODEC_OUT` = (per ciascun lato) `Device:C` 100n + `Device:CP` 10u (bypass pre/post induttore).
+
+- (Opzionale, se rappresenti anche il box RX in KiCad)
+  - `U_PSU5_RX` = `Mean Well IRM-05-5` (AC/DC 5V 1A).
+  - `U_PSU15_RX` = `Mean Well IRM-20-15` (AC/DC 15V ~1.3A).
+  - `U_REG33_RX` = `AMS1117-3.3` (3.3V codec RX).
+  - `L_CODEC_RX` + caps: filtro LC 3.3V verso ES8388 RX.
+  - `L_DRV_RX` + caps: filtro LC 15V verso DRV134 RX.
 
 ### Collegamenti
 
-1. **Ingressi verso Pololu**
-   - `J_DC` pin + → `VIN1` (o `VIN1R`) di `U_ORING`.
-   - `J_DC` pin − → `GND`.
-   - Da RJ45 Vaux:
-     - pin scelto come V+ (es. 7) → `VIN2` (o `VIN2R`) di `U_ORING`.
-     - pin GND (es. 8) → `GND` comune.
+1. **Master: AC → PSU 5V**
+   - `J_AC_IN` → ingresso AC di `U_PSU5_MASTER`.
+   - Uscita DC del PSU:
+     - `+5V_SYS`
+     - `GND`
 
-2. **Uscita Pololu → Buck**
-   - `VOUT` di `U_ORING` → ingresso positivo di `U_BUCK5`.
-   - `GND` di `U_ORING` → GND di `U_BUCK5`.
+2. **Master: 5V → 3.3V codec**
+   - `+5V_SYS` → `U_REG33_MASTER` IN
+   - `U_REG33_MASTER` OUT → net `+3V3_CODEC`
+   - `GND` comune
 
-3. **Uscita Buck**
-   - Uscita +5 V → net `+5V` (che alimenta UEDX, eventuale Slave, ES8388, WS2812, ecc.).
-   - Uscita GND → GND di sistema.
+3. **Filtro LC (codec)**
+   - `+3V3_CODEC` → `C_CODEC_IN` verso GND (10u + 100n)
+   - `+3V3_CODEC` → `L_CODEC (10uH)` → net `+3V3_ES8388`
+   - `+3V3_ES8388` → `C_CODEC_OUT` verso GND (10u + 100n)
+   - `+3V3_ES8388` alimenta i pin AVDD/DVDD del modulo ES8388 (secondo breakout)
+
+4. **RX (opzionale)**
+   - `J_AC_IN_RX` → `U_PSU5_RX` (5V) e `U_PSU15_RX` (15V)
+   - `+5V_RX` → `U_REG33_RX` → `LC` → `+3V3_RX_ES8388`
+   - `+15V_RX` → `LC` → `+15V_DRV134`
 
 ---
 

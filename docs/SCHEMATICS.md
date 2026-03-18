@@ -4,7 +4,7 @@
 
 | File | Contenuto |
 |------|-----------|
-| **[`SCHEMATIC_DSP_CONNECTIONS.html`](SCHEMATIC_DSP_CONNECTIONS.html)** | **Tutti i componenti**: alimentazione (Pololu, Buck, RJ45 Vaux), Master (ESP32, LCD, GT911, ES8388, I2S, TCA9535, relay, encoder, WS2812, MAX485 DSP, RJ45), Slave (IPC, I2S, DMX, XLR, relay, strobe), bus CQ260D, tabelle pin allineate a `config.h`. Stampa → PDF. |
+| **[`SCHEMATIC_DSP_CONNECTIONS.html`](SCHEMATIC_DSP_CONNECTIONS.html)** | **Tutti i componenti**: alimentazione (PSU IRM dedicato, 3.3V codec, filtro LC), Master (ESP32, LCD, GT911, ES8388, I2S, TCA9535, relay, encoder, WS2812, MAX485 DSP, RJ45), Slave (IPC, I2S, DMX, XLR, relay, strobe), bus CQ260D, tabelle pin allineate a `config.h`. Stampa → PDF. |
 
 I precedenti file multipli (`schematics_graphic.html`, `schematics_electric.html`, `schematics_print*.html`) sono stati **rimossi**: contenevano diagrammi duplicati o pin encoder non allineati al firmware.
 
@@ -13,6 +13,7 @@ I precedenti file multipli (`schematics_graphic.html`, `schematics_electric.html
 ## Cablaggio e datasheet (testo)
 
 - **[`CABLING_COMPLETE.md`](CABLING_COMPLETE.md)** – BOM, RJ45, XLR audio, ORing, M144, checklist  
+- **Nota alimentazione**: le vecchie sezioni “ORing/Vaux” sono state sostituite da PSU IRM dedicati (Vaux DSP non continua).
 - **[`WIRING_GUIDE.md`](WIRING_GUIDE.md)** – Dual-ESP32 7 fili step-by-step  
 - **[`PINOUT_REFERENCE.md`](PINOUT_REFERENCE.md)** – GPIO Master/Slave  
 - **[`DATASHEETS_REFERENCE.md`](DATASHEETS_REFERENCE.md)** – Sintesi PDF  

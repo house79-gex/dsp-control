@@ -208,38 +208,72 @@
 </svg>
 </div>
 
-<!-- ===================== FOGLIO 4: Pololu ORing + 5V ===================== -->
+<!-- ===================== FOGLIO 4: Alimentazione con PSU IRM + 3V3 + filtri ===================== -->
 <div class="sheet">
-<h2>Foglio 4 – Alimentazione: Pololu #5398 ORing · Buck 5V</h2>
-<svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" font-size="10">
+<h2>Foglio 4 – Alimentazione: Mean Well IRM (AC/DC) · 5V/15V · 3.3V codec · Filtri LC</h2>
+<svg viewBox="0 0 1100 560" xmlns="http://www.w3.org/2000/svg" font-size="10">
   <rect width="100%" height="100%" fill="#fafafa"/>
-  <rect x="80" y="80" width="100" height="50" fill="#fff" stroke="#000" stroke-width="2"/>
-  <text x="130" y="110" text-anchor="middle" font-weight="bold">J DC</text>
-  <text x="130" y="125" text-anchor="middle" font-size="9">12–19V</text>
 
-  <rect x="280" y="60" width="200" height="120" fill="#e8f5e9" stroke="#1b5e20" stroke-width="2"/>
-  <text x="380" y="88" text-anchor="middle" font-weight="bold">Pololu #5398</text>
-  <text x="295" y="110">VIN1 / VIN1R</text>
-  <text x="295" y="128">VIN2 / VIN2R</text>
-  <text x="295" y="155" font-weight="bold">VOUT</text>
-  <text x="295" y="172" font-size="9">GND comune</text>
+  <!-- Ingresso AC -->
+  <rect x="60" y="70" width="140" height="70" fill="#fff" stroke="#000" stroke-width="2"/>
+  <text x="130" y="100" text-anchor="middle" font-weight="bold">AC IN</text>
+  <text x="130" y="118" text-anchor="middle" font-size="9">230VAC</text>
 
-  <path d="M 180 105 L 278 105" stroke="#c00" stroke-width="2"/>
-  <path d="M 180 125 L 278 125" stroke="#000" stroke-width="2"/>
+  <!-- Master PSU 5V -->
+  <rect x="260" y="50" width="240" height="110" fill="#e8f5e9" stroke="#1b5e20" stroke-width="2" rx="6"/>
+  <text x="380" y="78" text-anchor="middle" font-weight="bold">IRM-30-5ST (Master)</text>
+  <text x="380" y="96" text-anchor="middle" font-size="9">5V · 6A · 30W</text>
+  <text x="275" y="122" font-size="9">+5V_SYS → UEDX / MAX485 / WS2812</text>
+  <text x="275" y="140" font-size="9">GND comune</text>
 
-  <rect x="600" y="75" width="120" height="90" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
-  <text x="660" y="108" text-anchor="middle" font-weight="bold">Buck 5V</text>
-  <text x="660" y="128" text-anchor="middle" font-size="9">≥3A</text>
-  <text x="660" y="152" text-anchor="middle" font-size="9">→ UEDX 5V</text>
+  <path d="M 200 105 L 260 105" stroke="#000" stroke-width="2"/>
 
-  <path d="M 480 120 L 598 120" stroke="#c00" stroke-width="2"/>
-  <text x="500" y="115" font-size="9">+</text>
+  <!-- Regolatore 3.3V codec -->
+  <rect x="560" y="60" width="180" height="90" fill="#fff8e1" stroke="#f9ab00" stroke-width="2" rx="6"/>
+  <text x="650" y="88" text-anchor="middle" font-weight="bold">AMS1117-3.3</text>
+  <text x="650" y="106" text-anchor="middle" font-size="9">da +5V_SYS</text>
+  <text x="650" y="124" text-anchor="middle" font-size="9">→ +3V3_CODEC</text>
 
-  <rect x="80" y="280" width="90" height="60" fill="#f5f5f5" stroke="#666" stroke-width="2"/>
-  <text x="125" y="310" text-anchor="middle" font-size="9" font-weight="bold">RJ45</text>
-  <text x="125" y="328" text-anchor="middle" font-size="8">Vaux DSP</text>
-  <path d="M 170 300 L 278 140" stroke="#c00" stroke-dasharray="4,2"/>
-  <text x="200" y="220" font-size="9" fill="#666">IN2 (verificare pin)</text>
+  <path d="M 500 105 L 560 105" stroke="#c00" stroke-width="2"/>
+  <text x="510" y="98" font-size="9" fill="#c00">+5V</text>
+
+  <!-- Filtro LC codec -->
+  <rect x="790" y="50" width="250" height="110" fill="#e3f2fd" stroke="#1565c0" stroke-width="2" rx="6"/>
+  <text x="915" y="78" text-anchor="middle" font-weight="bold">Filtro LC ES8388</text>
+  <text x="915" y="96" text-anchor="middle" font-size="9">L=10µH · C=10µF+100n (in/out)</text>
+  <text x="805" y="122" font-size="9">+3V3_CODEC → LC → +3V3_ES8388</text>
+  <text x="805" y="140" font-size="9">posizionare vicino al codec</text>
+
+  <path d="M 740 105 L 790 105" stroke="#c00" stroke-width="2"/>
+  <text x="748" y="98" font-size="9" fill="#c00">3.3V</text>
+
+  <!-- Modulo RX (opzionale) -->
+  <text x="60" y="220" font-size="12" font-weight="bold" fill="#137333">Modulo RX (opzionale) – alimentazioni dedicate</text>
+
+  <!-- RX PSU 5V -->
+  <rect x="60" y="250" width="220" height="110" fill="#e8f5e9" stroke="#1b5e20" stroke-width="2" rx="6"/>
+  <text x="170" y="278" text-anchor="middle" font-weight="bold">IRM-05-5 (RX)</text>
+  <text x="170" y="296" text-anchor="middle" font-size="9">5V · 1A · 5W</text>
+  <text x="75" y="322" font-size="9">→ +5V_RX (ESP32, RS-485, ecc.)</text>
+  <text x="75" y="340" font-size="9">→ AMS1117-3.3 (codec)</text>
+
+  <!-- RX PSU 15V -->
+  <rect x="320" y="250" width="220" height="110" fill="#f3e8fd" stroke="#9334e6" stroke-width="2" rx="6"/>
+  <text x="430" y="278" text-anchor="middle" font-weight="bold">IRM-20-15 (RX)</text>
+  <text x="430" y="296" text-anchor="middle" font-size="9">15V · ~1.3A · 20W</text>
+  <text x="335" y="330" font-size="9">→ +15V_RX (DRV134 dual)</text>
+
+  <!-- RX 3.3V + LC -->
+  <rect x="580" y="250" width="200" height="110" fill="#fff8e1" stroke="#f9ab00" stroke-width="2" rx="6"/>
+  <text x="680" y="278" text-anchor="middle" font-weight="bold">AMS1117-3.3 (RX)</text>
+  <text x="680" y="296" text-anchor="middle" font-size="9">da +5V_RX</text>
+  <text x="680" y="330" text-anchor="middle" font-size="9">→ +3V3_RX_CODEC</text>
+
+  <rect x="820" y="250" width="220" height="110" fill="#e3f2fd" stroke="#1565c0" stroke-width="2" rx="6"/>
+  <text x="930" y="278" text-anchor="middle" font-weight="bold">Filtri LC RX</text>
+  <text x="930" y="296" text-anchor="middle" font-size="9">LC 3.3V ES8388 + LC 15V DRV134</text>
+  <text x="835" y="330" font-size="9">+3V3_RX_CODEC → LC → ES8388</text>
+  <text x="835" y="348" font-size="9">+15V_RX → LC → DRV134</text>
 </svg>
 </div>
 

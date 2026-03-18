@@ -29,11 +29,10 @@ Sintesi tecnica centralizzata: **[`DATASHEETS_REFERENCE.md`](DATASHEETS_REFERENC
 ```mermaid
 flowchart TB
   subgraph PWR["Alimentazione"]
-    JACK[Jack DC]
-    RJ45_PWR[RJ45 pin Vaux da moduli DSP]
-    ORING[Pololu Power ORing 4-60V 6A]
-    BUCK5[Step-down 5V 3A+]
-    BUCK33[3.3V se necessario]
+    AC[Ingresso AC (rete 230V)]
+    PSU5[Mean Well IRM-30-5ST (5V, 6A)]
+    REG33[Regolatore 3.3V (AMS1117 o equivalente)]
+    LC_CODEC[Filtro LC (anti-disturbi) per ES8388]
   end
   subgraph AUDIO["Percorso audio"]
   RCA_IN_L[RCA In L sbilanciato]
@@ -50,10 +49,11 @@ flowchart TB
     MAX_DSP[MAX485 DSP]
     RJ45_DSP[RJ45 verso bus DSP]
   end
-  JACK --> ORING
-  RJ45_PWR --> ORING
-  ORING --> BUCK5
-  BUCK5 --> MCU
+  AC --> PSU5
+  PSU5 --> MCU
+  PSU5 --> REG33
+  REG33 --> LC_CODEC
+  LC_CODEC --> ES8388
   RCA_IN_L --> ES8388
   RCA_IN_R --> ES8388
   ES8388 --> RCA_OUT
@@ -68,29 +68,39 @@ flowchart TB
 
 ---
 
-## 2. Alimentazione – Jack + RJ45 Vaux (Pololu #5398, da PDF Pololu)
+## 2. Alimentazione – Alimentatore dedicato (Mean Well IRM) + 3.3V + filtro LC codec
 
-**Modulo:** *Power ORing Ideal Diode Pair* – **4–60 V**, **6 A per canale**, uscita **VOUT**. Ogni ingresso ha **VINx** (diretto) e **VINxR** (attraverso ~20 mΩ per bilanciamento).
+Dato che l’uscita ausiliaria dei moduli DSP **non è continua** ma va abilitata dal DSP stesso, l’alimentazione del Box Master viene resa **indipendente** tramite alimentatori dedicati.
 
-| Pad Pololu | Collegamento consigliato |
-|------------|---------------------------|
-| **VIN1** o **VIN1R** + GND | Jack DC box (es. 12–19 V) |
-| **VIN2** o **VIN2R** + GND | **RJ45** alimentazione ausiliaria moduli DSP (**polarità da verificare**) |
-| **VOUT** + GND | → **Buck 5 V ≥ 3 A** → **UEDX 5 V** (SPEC: 5 V 1 A consigliati; 300 mA tip. max backlight) |
+### 2.1 Scelta consigliata (Master)
+
+- **PSU principale 5 V**: `Mean Well IRM-30-5ST` (**5 V, 6 A, 30 W**) per:
+  - UEDX (ESP32 + display)
+  - periferiche 5 V (WS2812, MAX485, ecc.)
+  - eventuali moduli aggiuntivi
+- **3.3 V locale** per il codec e la logica 3.3 V:
+  - `AMS1117-3.3` (come da tua lista) *oppure* un regolatore LDO più silenzioso se vuoi migliorare SNR
+- **Filtro LC anti-disturbi** prima del modulo ES8388:
+  - consigliato soprattutto se alimenti display/backlight e LED dalla stessa 5 V
+
+### 2.2 Collegamento concettuale
 
 ```text
-  Jack+ ──► VIN1 (o VIN1R)     RJ45 V+ ──► VIN2 (o VIN2R)
-  GND  ──► GND comune         GND     ──► GND
-                    VOUT+ ──► Buck 5V ──► +5V UEDX / M5 / periferiche
+  230VAC ──► IRM-30-5ST (5V) ──► +5V_SYS ──► UEDX / MAX485 / WS2812 / ecc.
+                           └──► AMS1117-3.3 ──► +3V3_CODEC ──► Filtro LC ──► ES8388 (AVDD/DVDD)
+
+  GND: punto stella (analogico) vicino al codec; ritorni “sporchi” (LED/backlight) separati fin dove possibile.
 ```
 
-**Nota Pololu:** le due sorgenti sono in **OR** (tensione più alta tende a fornire); per condivisione carico usare tensioni vicine o resistenza serie su ingresso più alto.
+### 2.3 Valori pratici filtro LC (linea 3.3V del codec)
 
-**Avvertenze**
+Esempio “robusto” (non critico, va bene anche come ferrite+caps):
 
-- Non assumere mai la polarità dei pin RJ45 dei moduli DSP senza datasheet.
-- Fusibile o polyswitch su **ogni** ingresso DC consigliato.
-- GND comune tra Master, Slave (se collegato), RS-485, ES8388 analog ground (stella verso un punto).
+- **L**: 10 µH (corrente nominale ≥ 300–500 mA, bassa DCR)
+- **C lato ingresso**: 10 µF + 100 nF verso GND
+- **C lato uscita (vicino al codec)**: 10 µF + 100 nF verso GND
+
+Obiettivo: ridurre ripple/commutazione e isolare il codec dai disturbi digitali.
 
 ---
 
@@ -133,10 +143,11 @@ Uscite cuffia / linea: **LOUT1/ROUT1** → jack **PJ-342B** (J1/J2) con **22 Ω*
 | 4 | RS-485 **A** |
 | 5 | RS-485 **B** |
 | 6 | riservato |
-| 7 | **V+ ausiliario** (verso ORing IN2) – *solo se modulo lo fornisce* |
-| 8 | **GND alimentazione** |
+| 7 | riservato (non usato per alimentazione) |
+| 8 | riservato |
 
-**Verifica obbligatoria** su primo modulo DSP: continuità A/B e tensione pin 7–8.
+**Verifica obbligatoria** su primo modulo DSP: continuità A/B e (se presenti) eventuali funzioni extra su RJ45.  
+In questa revisione **non si usa** alimentazione ausiliaria via RJ45.
 
 Terminazione **120 Ω** tra A e B sull’**ultima** presa della catena (o solo sul box se punto unico).
 
@@ -283,8 +294,8 @@ Inserisci lo **schematico Atomstack** nella cartella `docs/hardware/` (PDF) e ag
 
 | Connettore | Funzione |
 |------------|----------|
-| Jack DC | Alimentazione principale → ORing IN1 |
-| RJ45 | Bus RS-485 DSP + (opz.) Vaux → ORing IN2 |
+| Ingresso AC | Alimentazione → IRM-30-5ST (5V) |
+| RJ45 | Bus RS-485 DSP (solo dati A/B + GND/schermo) |
 | RCA In L/R | Ingressi linea sbilanciati da sorgente (es. Denon) → ES8388 |
 | RCA Out L/R | Uscita monitor / registrazione da ES8388 DAC |
 | USB-C | Programmazione ESP (se presente sulla UEDX) |
@@ -317,4 +328,4 @@ Inserisci lo **schematico Atomstack** nella cartella `docs/hardware/` (PDF) e ag
 
 ---
 
-*Ultimo aggiornamento: cablaggio esteso encoder, LED, relay, alimentazione ORing, XLR bilanciato, RJ45 DSP, secondo MAX485 DMX, Slave esteso.*
+*Ultimo aggiornamento: cablaggio esteso encoder, LED, relay, alimentazione con PSU IRM dedicati, XLR bilanciato, RJ45 DSP, secondo MAX485 DMX, Slave esteso.*

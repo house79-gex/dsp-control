@@ -156,6 +156,46 @@ Per bypass resistenza: collegare **VINx** direttamente (fori piccoli) o ponticel
 
 ---
 
+## 6b. Mean Well IRM (alimentazione dedicata – revisione con Vaux non continua)
+
+In questa revisione l’alimentazione non dipende più da Vaux dei moduli DSP su RJ45 (che può essere abilitata/disabilitata dal DSP).  
+Si usano alimentatori AC/DC dedicati serie **IRM**.
+
+> **Nota**: i datasheet IRM non sono ancora inclusi nei PDF in repository; aggiungerli in `docs/` quando disponibili.
+
+### Modulo Master
+
+- `IRM-30-5ST` – **5 V, 6 A, 30 W**
+  - alimentazione principale di sistema (`+5V_SYS`)
+
+### Modulo RX (wireless)
+
+- `IRM-05-5` – **5 V, 5 W** (tipicamente 1 A)
+  - alimentazione logica RX (`+5V_RX`, ESP32, MAX485, ecc.)
+- `IRM-20-15` – **15 V, 20 W**
+  - alimentazione driver bilanciato (`+15V_RX`, DRV134 dual)
+
+---
+
+## 6c. Regolatore 3.3 V e filtro LC per codec ES8388
+
+### Regolatore 3.3 V
+
+- `AMS1117-3.3` (come soluzione semplice e reperibile)
+  - attenzione a dissipazione: \(P \approx (5V-3.3V)\cdot I\)
+  - tenere condensatori di stabilità vicino ai pin IN/OUT (da datasheet del regolatore)
+
+### Filtro LC (anti-disturbi)
+
+Per isolare l’alimentazione analogica/digitale del codec:
+
+- **L**: 10 µH (bassa DCR, corrente nominale adeguata)
+- **C**: 10 µF + 100 nF su entrambi i lati dell’induttore (più vicino possibile al carico lato uscita)
+
+Alternativa: ferrite bead + 10 µF + 100 nF se vuoi ridurre ingombro e ottimizzare su rumore HF.
+
+---
+
 ## 7. MAX485.pdf
 
 Transceiver **RS-485** half-duplex (tipico **MAX485/SP485**):

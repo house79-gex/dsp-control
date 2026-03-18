@@ -9,8 +9,18 @@ I PDF sotto elencati **non sono inclusi nel repository** (copyright/ dimensione)
 | **ES8388.pdf** | Datasheet codec |
 | **Relè Module interface.pdf** | Pin relè |
 | **Encoder rotativo.pdf** | EC11 |
-| **pololu-power-oring-ideal-diode-pair.pdf** | Pololu ORing #5398 |
+| **pololu-power-oring-ideal-diode-pair.pdf** | Pololu ORing #5398 (legacy: non usato se alimenti con PSU IRM dedicati) |
 | **MAX485.pdf** | RS-485 |
 | **Led Ring WS2811.pdf** | Anello LED |
+
+## Alimentazione (revisione attuale)
+
+Nella revisione attuale l’alimentazione usa PSU AC/DC dedicati:
+
+- `Mean Well IRM-30-5ST` (Master, 5V 6A)
+- `Mean Well IRM-05-5` (RX, 5V)
+- `Mean Well IRM-20-15` (RX, 15V per DRV134)
+
+Aggiungere i datasheet IRM in `docs/` quando li hai disponibili.
 
 Sintesi cablaggio e pin ricavati da questi PDF: **`docs/DATASHEETS_REFERENCE.md`** e **`docs/CABLING_COMPLETE.md`**.

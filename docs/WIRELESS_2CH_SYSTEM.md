@@ -145,7 +145,12 @@ DMX485 → XLR DMX OUT → Controller luci
 
 ## 6. Uscita Audio Professionale – ES8388 → Modulo DRV134 dual → 2× XLR Bilanciati
 
-Per il modulo RX wireless adottiamo in modo **definitivo** un piccolo PCB commerciale basato su **DRV134 dual channel** (sbilanciato → bilanciato), alimentato da **5–24 V DC**.
+Per il modulo RX wireless adottiamo in modo **definitivo** un piccolo PCB commerciale basato su **DRV134 dual channel** (sbilanciato → bilanciato).
+
+Alimentazione consigliata (revisione con Vaux DSP non continua):
+- **+5 V** dedicata (logica RX + ES8388)
+- **+15 V** dedicata per DRV134 (headroom e livello linea pro)
+con filtri LC locali per ridurre disturbi.
 
 ### 6.1 Schema concettuale stereo (RX unico con 2 XLR out)
 

@@ -107,7 +107,9 @@ Riferimento pin: [`docs/PINOUT_REFERENCE.md`](docs/PINOUT_REFERENCE.md) e [`docs
 | ESP32-S3-WROOM1-N16R8 Dev Board | 1 | Board Slave (16MB Flash, 8MB PSRAM, connettore IPEX) |
 | Antenna 2.4GHz 3dBi IPEX (U.FL) | 1 | Per ESP32 #2 – range 150-300m |
 | Cavo ribbon 7-pin 2.54mm 30cm | 1 | I2S (3) + UART IPC (2) + GND (1) + +5V opz (1) |
-| Alimentatore 5V 2A | 1 | O 2× alimentatori 5V 1A con GND comune |
+| Alimentatore AC/DC 5V (Mean Well IRM-30-5ST) | 1 | 5V 6A, alimentazione principale Master (indipendente da Vaux DSP) |
+| Regolatore 3.3V (AMS1117-3.3) | 1 | Per alimentare ES8388 dal +5V (Master) |
+| Filtro LC per codec | 1 | L=10µH + C=10µF//100n (pre/post) per ridurre disturbi su ES8388 |
 
 ### Componenti Audio/Controllo
 
