@@ -111,6 +111,11 @@ Riferimento pin: [`docs/PINOUT_REFERENCE.md`](docs/PINOUT_REFERENCE.md) e [`docs
 | Regolatore 3.3V (AMS1117-3.3) | 1 | Per alimentare ES8388 dal +5V (Master) |
 | Filtro LC per codec | 1 | L=10µH + C=10µF//100n (pre/post) per ridurre disturbi su ES8388 |
 
+### Note rapide di dimensionamento (alimentazione)
+
+- **Master**: `IRM-30-5ST (5V 6A)` offre margine per UEDX + periferiche + LED.
+- **3.3V con AMS1117**: dissipazione \(P \approx (5-3.3)\cdot I\). Se il carico 3.3 V cresce oltre ~200–300 mA, prevedere area rame o alternativa più efficiente/silenziosa.
+
 ### Componenti Audio/Controllo
 
 | Componente | Qt | Note |

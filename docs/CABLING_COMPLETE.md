@@ -102,6 +102,55 @@ Esempio “robusto” (non critico, va bene anche come ferrite+caps):
 
 Obiettivo: ridurre ripple/commutazione e isolare il codec dai disturbi digitali.
 
+### 2.4 Dimensionamento rapido (correnti e dissipazione)
+
+Questa sezione serve come checklist “prima di cablare”, con stime conservative.
+
+#### 2.4.1 Master (IRM-30-5ST, 5V 6A)
+
+- **UEDX (ESP32 + display)**: fino a ~**300 mA** (picchi/backlight dipendono da luminosità).
+- **2× LED ring WS2812**: caso peggiore teorico (bianco pieno) può arrivare a ~**1–2 A** totali a 5 V (dipende dal numero LED reali e brightness).
+- **RS-485 / periferiche**: tipicamente **<200 mA** complessivi.
+
+Con `IRM-30-5ST (6 A)` hai margine abbondante anche in condizioni “worst case”.
+
+#### 2.4.2 RX (IRM-05-5, 5V 1A + IRM-20-15, 15V)
+
+- **ESP32-S3 RX (Wi‑Fi/ESP‑NOW)**: tipicamente 200–400 mA, con picchi possibili più alti in TX.
+- **ES8388 + I2C/I2S + logica**: tipicamente decine di mA.
+- **MAX485 / IO**: tipicamente poche decine di mA.
+
+`IRM-05-5 (5V 1A)` è in genere sufficiente per RX; se aggiungi molte periferiche (LED, relè, ecc.) valuta una versione 5 V più potente.
+
+Per il bilanciato:
+- `IRM-20-15 (15V 20W)` fornisce headroom e margine ampio per il modulo DRV134 (assorbimenti tipicamente bassi, ma il margine aiuta su transitori e stabilità).
+
+#### 2.4.3 Dissipazione AMS1117-3.3
+
+L’AMS1117 dissipa:
+
+\[
+P \approx (V_{in}-V_{out}) \cdot I \approx (5-3.3)\cdot I = 1.7 \cdot I
+\]
+
+Esempi:
+- a **100 mA** → \(P \approx 0.17 W\) (ok su PCB con rame decente)
+- a **300 mA** → \(P \approx 0.51 W\) (serve area rame/heatsinking, attenzione temperatura)
+
+Se il carico 3.3 V cresce, valuta un regolatore più efficiente o un LDO con migliore termica/rumore.
+
+#### 2.4.4 Note pratiche sui filtri LC
+
+- Scegli induttanze con **corrente nominale** superiore al carico (codec/driver) e **bassa DCR**.
+- Metti i condensatori **vicino ai pin di alimentazione** del carico (ES8388 / DRV134).
+- Se noti risonanze (whine/instabilità), una soluzione semplice è usare **ferrite bead** al posto dell’induttore o aggiungere un po’ di ESR (es. elettrolitico) sul ramo.
+
+#### 2.4.5 Sicurezza lato AC (importante)
+
+- Inserire **fusibile** sul conduttore di fase (L) e, se possibile, **interruttore** generale.
+- Se usi contenitori metallici, prevedi **PE (terra)** e fissaggio meccanico adeguato.
+- Mantieni separazione fisica tra AC e bassa tensione (distanze/isolamenti) e passacavi.
+
 ---
 
 ## 2b. Modulo audio M5 (M144) + ES8388 – da M144_sch_moduleaudio_v10.pdf
